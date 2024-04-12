@@ -10,13 +10,15 @@ import (
 )
 
 func main() {
-    subcommands.Register(subcommands.CommandsCommand(), "")
-    subcommands.Register(subcommands.FlagsCommand(), "")
-    subcommands.Register(subcommands.HelpCommand(), "")
-    subcommands.Register(new(cmd.Run), "")
-    flag.Parse()
+	subcommands.Register(subcommands.CommandsCommand(), "")
+	subcommands.Register(subcommands.FlagsCommand(), "")
+	subcommands.Register(subcommands.HelpCommand(), "")
+	subcommands.Register(new(cmd.Run), "")
+	subcommands.Register(new(cmd.Create), "")
+	subcommands.Register(new(cmd.Delete), "")
+	flag.Parse()
 
-    ctx := context.Background()
-    status := subcommands.Execute(ctx)
-    os.Exit(int(status))
+	ctx := context.Background()
+	status := subcommands.Execute(ctx)
+	os.Exit(int(status))
 }
