@@ -40,3 +40,19 @@ func (r *Runtime) DeleteContainer(cId string) {
 		fmt.Printf("Container was not found: %s\n", cId)
 	}
 }
+
+func (r *Runtime) FindContainer(cId string) *Container {
+	cIdx := -1
+	for i, c := range r.Containers {
+		if c.Id == cId {
+			cIdx = i
+			break
+		}
+	}
+
+	if cIdx == -1 {
+		return nil
+	}
+
+	return &r.Containers[cIdx]
+}
