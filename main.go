@@ -11,11 +11,10 @@ import (
 
 func main() {
 	subcommands.Register(subcommands.CommandsCommand(), "")
-	subcommands.Register(subcommands.FlagsCommand(), "")
-	subcommands.Register(subcommands.HelpCommand(), "")
 	subcommands.Register(new(cmd.Run), "")
 	subcommands.Register(new(cmd.Create), "")
 	subcommands.Register(new(cmd.Delete), "")
+	subcommands.Register(new(cmd.List), "")
 	flag.Parse()
 
 	ctx := context.Background()
