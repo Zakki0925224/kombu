@@ -5,18 +5,22 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
+	cp "github.com/otiai10/copy"
 )
 
 type Container struct {
 	Id string
 }
 
-func NewContainer() Container {
+func NewContainer(rootfsDirPath string) Container {
 	uuidObj, _ := uuid.NewRandom()
 	uuidStr := uuidObj.String()
 
-	// create container directory
-	os.MkdirAll(CONTAINERS_PATH+"/"+uuidStr, os.ModePerm)
+	// create container and rootfs directory
+	p := CONTAINERS_PATH + "/" + uuidStr + "/" + ROOTFS_DIR_NAME
+	os.MkdirAll(p, os.ModePerm)
+	// copy rootfs
+	cp.Copy(rootfsDirPath, p)
 
 	return Container{
 		Id: uuidStr,
@@ -47,7 +51,7 @@ func FindContainersFromDirectory() []Container {
 			Id: info.Name(),
 		})
 
-		return nil
+		return filepath.SkipDir
 	})
 
 	if err != nil {

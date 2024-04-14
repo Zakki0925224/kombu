@@ -12,9 +12,8 @@ func NewRuntime() Runtime {
 	}
 }
 
-func (r *Runtime) CreateContainer() string {
-	c := NewContainer()
-	fmt.Printf("Created new container: %s\n", c.Id)
+func (r *Runtime) CreateContainer(rootfsDirPath string) string {
+	c := NewContainer(rootfsDirPath)
 	r.Containers = append(r.Containers, c)
 	return c.Id
 }
