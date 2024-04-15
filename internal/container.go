@@ -9,21 +9,31 @@ import (
 )
 
 type Container struct {
-	Id string
+	Id         string
+	ConfigJson string
 }
 
-func NewContainer(rootfsDirPath string) Container {
+func NewContainer(ociRuntimeBundlePath string) Container {
 	uuidObj, _ := uuid.NewRandom()
 	uuidStr := uuidObj.String()
 
 	// create container and rootfs directory
-	p := CONTAINERS_PATH + "/" + uuidStr + "/" + ROOTFS_DIR_NAME
-	os.MkdirAll(p, os.ModePerm)
+	os.MkdirAll(RootfsPath(uuidStr), os.ModePerm)
 	// copy rootfs
-	cp.Copy(rootfsDirPath, p)
+	cp.Copy(ociRuntimeBundlePath+"/"+ROOTFS_DIR_NAME, RootfsPath(uuidStr))
+	// copy config.json
+	cp.Copy(ociRuntimeBundlePath+"/"+BUNDLE_CONFIG_FILE_NAME, ConfigFilePath(uuidStr))
+	// read config file
+	f, _ := os.Open(ConfigFilePath(uuidStr))
+	fStat, _ := f.Stat()
+	fSize := fStat.Size()
+	buf := make([]byte, fSize)
+	f.Read(buf)
+	f.Close()
 
 	return Container{
-		Id: uuidStr,
+		Id:         uuidStr,
+		ConfigJson: string(buf),
 	}
 }
 
@@ -47,8 +57,17 @@ func FindContainersFromDirectory() []Container {
 			return filepath.SkipDir
 		}
 
+		// read config file
+		f, _ := os.Open(ConfigFilePath(info.Name()))
+		fStat, _ := f.Stat()
+		fSize := fStat.Size()
+		buf := make([]byte, fSize)
+		f.Read(buf)
+		f.Close()
+
 		cs = append(cs, Container{
-			Id: info.Name(),
+			Id:         info.Name(),
+			ConfigJson: string(buf),
 		})
 
 		return filepath.SkipDir

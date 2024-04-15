@@ -12,8 +12,8 @@ func NewRuntime() Runtime {
 	}
 }
 
-func (r *Runtime) CreateContainer(rootfsDirPath string) string {
-	c := NewContainer(rootfsDirPath)
+func (r *Runtime) CreateContainer(ociRuntimeBundlePath string) string {
+	c := NewContainer(ociRuntimeBundlePath)
 	r.Containers = append(r.Containers, c)
 	return c.Id
 }

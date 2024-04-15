@@ -18,9 +18,9 @@ type Run struct {
 	child bool
 }
 
-func (*Run) Name() string     { return "run" }
-func (*Run) Synopsis() string { return "run command in the container" }
-func (*Run) Usage() string    { return "run <container-id> <command...>" }
+func (t *Run) Name() string     { return "run" }
+func (t *Run) Synopsis() string { return "run command in the container" }
+func (t *Run) Usage() string    { return "run <container-id> <command...>: " + t.Synopsis() }
 func (t *Run) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&t.child, "child", false, "run as child process")
 }

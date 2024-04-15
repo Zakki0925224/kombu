@@ -11,10 +11,10 @@ import (
 
 type Create struct{}
 
-func (*Create) Name() string             { return "create" }
-func (*Create) Synopsis() string         { return "create new container" }
-func (*Create) Usage() string            { return "create <rootfs-dir-path>: Create new container" }
-func (*Create) SetFlags(f *flag.FlagSet) {}
+func (t *Create) Name() string             { return "create" }
+func (t *Create) Synopsis() string         { return "create new container" }
+func (t *Create) Usage() string            { return "create <OCI runtime bundle path>: " + t.Synopsis() }
+func (t *Create) SetFlags(f *flag.FlagSet) {}
 func (t *Create) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	args := f.Args()
 

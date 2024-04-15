@@ -11,10 +11,10 @@ import (
 
 type Delete struct{}
 
-func (*Delete) Name() string             { return "delete" }
-func (*Delete) Synopsis() string         { return "delete container" }
-func (*Delete) Usage() string            { return "delete <container-id>: delete container" }
-func (*Delete) SetFlags(f *flag.FlagSet) {}
+func (t *Delete) Name() string             { return "delete" }
+func (t *Delete) Synopsis() string         { return "delete container" }
+func (t *Delete) Usage() string            { return "delete <container-id>: " + t.Synopsis() }
+func (t *Delete) SetFlags(f *flag.FlagSet) {}
 func (t *Delete) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	args := f.Args()
 
