@@ -13,35 +13,57 @@ type Container struct {
 	ConfigJson string
 }
 
-func NewContainer(ociRuntimeBundlePath string) Container {
-	uuidObj, _ := uuid.NewRandom()
+func NewContainer(ociRuntimeBundlePath string) (Container, error) {
+	uuidObj, err := uuid.NewRandom()
+	if err != nil {
+		return Container{}, err
+	}
+
 	uuidStr := uuidObj.String()
 
 	// create container and rootfs directory
-	os.MkdirAll(RootfsPath(uuidStr), os.ModePerm)
+	if err := os.MkdirAll(RootfsPath(uuidStr), os.ModePerm); err != nil {
+		return Container{}, err
+	}
 	// copy rootfs
-	cp.Copy(ociRuntimeBundlePath+"/"+ROOTFS_DIR_NAME, RootfsPath(uuidStr))
+	if err := cp.Copy(ociRuntimeBundlePath+"/"+ROOTFS_DIR_NAME, RootfsPath(uuidStr)); err != nil {
+		return Container{}, err
+	}
 	// copy config.json
-	cp.Copy(ociRuntimeBundlePath+"/"+BUNDLE_CONFIG_FILE_NAME, ConfigFilePath(uuidStr))
+	if err := cp.Copy(ociRuntimeBundlePath+"/"+BUNDLE_CONFIG_FILE_NAME, ConfigFilePath(uuidStr)); err != nil {
+		return Container{}, err
+	}
 	// read config file
-	f, _ := os.Open(ConfigFilePath(uuidStr))
-	fStat, _ := f.Stat()
+	f, err := os.Open(ConfigFilePath(uuidStr))
+	if err != nil {
+		return Container{}, err
+	}
+
+	fStat, err := f.Stat()
+	if err != nil {
+		return Container{}, err
+	}
+
 	fSize := fStat.Size()
 	buf := make([]byte, fSize)
-	f.Read(buf)
-	f.Close()
+	if _, err := f.Read(buf); err != nil {
+		return Container{}, err
+	}
+	if err := f.Close(); err != nil {
+		return Container{}, err
+	}
 
 	return Container{
 		Id:         uuidStr,
 		ConfigJson: string(buf),
-	}
+	}, nil
 }
 
-func FindContainersFromDirectory() []Container {
+func FindContainersFromDirectory() ([]Container, error) {
 	cs := make([]Container, 0)
 
 	if _, err := os.Stat(CONTAINERS_PATH); os.IsNotExist(err) {
-		return cs
+		return cs, err
 	}
 
 	err := filepath.Walk(CONTAINERS_PATH, func(path string, info os.FileInfo, err error) error {
@@ -58,12 +80,25 @@ func FindContainersFromDirectory() []Container {
 		}
 
 		// read config file
-		f, _ := os.Open(ConfigFilePath(info.Name()))
-		fStat, _ := f.Stat()
+		f, err := os.Open(ConfigFilePath(info.Name()))
+		if err != nil {
+			return err
+		}
+
+		fStat, err := f.Stat()
+		if err != nil {
+			return err
+		}
+
 		fSize := fStat.Size()
 		buf := make([]byte, fSize)
-		f.Read(buf)
-		f.Close()
+		if _, err := f.Read(buf); err != nil {
+			return err
+		}
+
+		if err := f.Close(); err != nil {
+			return err
+		}
 
 		cs = append(cs, Container{
 			Id:         info.Name(),
@@ -74,10 +109,10 @@ func FindContainersFromDirectory() []Container {
 	})
 
 	if err != nil {
-		panic(err)
+		return cs, err
 	}
 
-	return cs
+	return cs, nil
 }
 
 func (c *Container) DeleteContainerDirectory() error {

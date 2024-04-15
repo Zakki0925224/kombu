@@ -23,7 +23,16 @@ func (t *Delete) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 		return subcommands.ExitFailure
 	}
 
-	r := internal.NewRuntime()
-	r.DeleteContainer(args[0])
+	r, err := internal.NewRuntime()
+	if err != nil {
+		fmt.Printf("Error occured: %s\n", err)
+		return subcommands.ExitFailure
+	}
+
+	if err := r.DeleteContainer(args[0]); err != nil {
+		fmt.Printf("Error occured: %s\n", err)
+		return subcommands.ExitFailure
+	}
+
 	return subcommands.ExitSuccess
 }

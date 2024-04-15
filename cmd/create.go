@@ -23,8 +23,17 @@ func (t *Create) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 		return subcommands.ExitFailure
 	}
 
-	r := internal.NewRuntime()
-	cId := r.CreateContainer(args[0])
+	r, err := internal.NewRuntime()
+	if err != nil {
+		fmt.Printf("Error occured: %s\n", err)
+		return subcommands.ExitFailure
+	}
+
+	cId, err := r.CreateContainer(args[0])
+	if err != nil {
+		fmt.Printf("Error occured: %s\n", err)
+		return subcommands.ExitFailure
+	}
 
 	fmt.Printf("Created new container: %s\n", cId)
 	return subcommands.ExitSuccess

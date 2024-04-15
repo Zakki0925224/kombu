@@ -64,7 +64,12 @@ func (t *Run) execChild(args []string) subcommands.ExitStatus {
 	cId := args[0]
 	cmdArgs := args[1:]
 
-	r := internal.NewRuntime()
+	r, err := internal.NewRuntime()
+	if err != nil {
+		fmt.Printf("Error occured: %s\n", err)
+		return subcommands.ExitFailure
+	}
+
 	c := r.FindContainer(cId)
 
 	if c == nil {

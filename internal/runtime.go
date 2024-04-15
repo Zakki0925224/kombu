@@ -1,24 +1,35 @@
 package internal
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Runtime struct {
 	Containers []Container
 }
 
-func NewRuntime() Runtime {
-	return Runtime{
-		Containers: FindContainersFromDirectory(),
+func NewRuntime() (Runtime, error) {
+	c, err := FindContainersFromDirectory()
+	if err != nil {
+		return Runtime{}, err
 	}
+
+	return Runtime{
+		Containers: c,
+	}, nil
 }
 
-func (r *Runtime) CreateContainer(ociRuntimeBundlePath string) string {
-	c := NewContainer(ociRuntimeBundlePath)
+func (r *Runtime) CreateContainer(ociRuntimeBundlePath string) (string, error) {
+	c, err := NewContainer(ociRuntimeBundlePath)
+	if err != nil {
+		return "", err
+	}
+
 	r.Containers = append(r.Containers, c)
-	return c.Id
+	return c.Id, nil
 }
 
-func (r *Runtime) DeleteContainer(cId string) {
+func (r *Runtime) DeleteContainer(cId string) error {
 	cIdx := -1
 	for i, c := range r.Containers {
 		if c.Id == cId {
@@ -30,14 +41,15 @@ func (r *Runtime) DeleteContainer(cId string) {
 	if cIdx != -1 {
 		err := r.Containers[cIdx].DeleteContainerDirectory()
 		if err != nil {
-			fmt.Printf("%v\n", err)
+			return err
 		}
 
 		r.Containers = append(r.Containers[:cIdx], r.Containers[cIdx+1:]...)
-		fmt.Printf("Deleted container: %s\n", cId)
 	} else {
-		fmt.Printf("Container was not found: %s\n", cId)
+		return fmt.Errorf("Container was not found: %s", cId)
 	}
+
+	return nil
 }
 
 func (r *Runtime) FindContainer(cId string) *Container {
