@@ -2,6 +2,8 @@ package internal
 
 import (
 	"fmt"
+	"io/fs"
+	"os"
 )
 
 type Runtime struct {
@@ -9,6 +11,10 @@ type Runtime struct {
 }
 
 func NewRuntime() (Runtime, error) {
+	if err := os.MkdirAll(CONTAINERS_PATH, fs.ModePerm); err != nil {
+		return Runtime{}, err
+	}
+
 	c, err := FindContainersFromDirectory()
 	if err != nil {
 		return Runtime{}, err

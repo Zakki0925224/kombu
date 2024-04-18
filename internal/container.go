@@ -1,16 +1,18 @@
 package internal
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 
 	"github.com/google/uuid"
+	specs_go "github.com/opencontainers/runtime-spec/specs-go"
 	cp "github.com/otiai10/copy"
 )
 
 type Container struct {
-	Id         string
-	ConfigJson string
+	Id   string
+	Spec specs_go.Spec
 }
 
 func NewContainer(ociRuntimeBundlePath string) (Container, error) {
@@ -53,9 +55,14 @@ func NewContainer(ociRuntimeBundlePath string) (Container, error) {
 		return Container{}, err
 	}
 
+	var spec specs_go.Spec
+	if err := json.Unmarshal(buf, &spec); err != nil {
+		return Container{}, err
+	}
+
 	return Container{
-		Id:         uuidStr,
-		ConfigJson: string(buf),
+		Id:   uuidStr,
+		Spec: spec,
 	}, nil
 }
 
@@ -100,9 +107,14 @@ func FindContainersFromDirectory() ([]Container, error) {
 			return err
 		}
 
+		var spec specs_go.Spec
+		if err := json.Unmarshal(buf, &spec); err != nil {
+			return err
+		}
+
 		cs = append(cs, Container{
-			Id:         info.Name(),
-			ConfigJson: string(buf),
+			Id:   info.Name(),
+			Spec: spec,
 		})
 
 		return filepath.SkipDir
