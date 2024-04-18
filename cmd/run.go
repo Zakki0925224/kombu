@@ -10,6 +10,7 @@ import (
 
 	"github.com/Zakki0925224/kombu/internal"
 	"github.com/google/subcommands"
+	specs_go "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const SELF_PROC_PATH string = "/proc/self/exe"
@@ -41,9 +42,39 @@ func (t *Run) execParent(args []string) subcommands.ExitStatus {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	r, err := internal.NewRuntime()
+	if err != nil {
+		fmt.Printf("Error occured: %s\n", err)
+		return subcommands.ExitFailure
+	}
+
+	c := r.FindContainer(args[0])
+	if c == nil {
+		fmt.Printf("Container was not found: %s\n", args[0])
+		return subcommands.ExitFailure
+	}
+
+	spec := c.Spec
+
 	// create new namespace
+	flags := 0
+	for _, ns := range spec.Linux.Namespaces {
+		switch ns.Type {
+		case specs_go.PIDNamespace:
+			flags |= syscall.CLONE_NEWPID
+		case specs_go.NetworkNamespace:
+			flags |= syscall.CLONE_NEWNET
+		case specs_go.IPCNamespace:
+			flags |= syscall.CLONE_NEWIPC
+		case specs_go.UTSNamespace:
+			flags |= syscall.CLONE_NEWUTS
+		case specs_go.MountNamespace:
+			flags |= syscall.CLONE_NEWNS
+		}
+	}
+
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
+		Cloneflags: uintptr(flags),
 	}
 
 	if err := cmd.Run(); err != nil {
@@ -71,17 +102,18 @@ func (t *Run) execChild(args []string) subcommands.ExitStatus {
 	}
 
 	c := r.FindContainer(cId)
-
 	if c == nil {
 		fmt.Printf("Container was not found: %s\n", cId)
 		return subcommands.ExitFailure
 	}
 
+	spec := c.Spec
+
 	// set rootfs
 	syscall.Chroot(internal.RootfsPath(cId))
-	syscall.Chdir("/")
+	syscall.Chdir(spec.Process.Cwd)
 	// set hostname
-	syscall.Sethostname([]byte("container-" + cId))
+	syscall.Sethostname([]byte(spec.Hostname))
 	// mount proc
 	//syscall.Mount("proc", "proc", "proc", 0, "")
 
