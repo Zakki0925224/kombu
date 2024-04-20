@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/Zakki0925224/kombu/internal"
@@ -109,18 +110,51 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 	spec := c.Spec
 
 	rootFsPath := internal.RootfsPath(cId, spec.Root.Path)
-	syscall.Chroot(rootFsPath)
+	if err := syscall.Chroot(rootFsPath); err != nil {
+		fmt.Printf("Failed to syscall.chroot: %s\n", err)
+		return subcommands.ExitFailure
+	}
 	fmt.Printf("Set root: %s\n", rootFsPath)
 
 	cwd := spec.Process.Cwd
-	syscall.Chdir(cwd)
+	if err := syscall.Chdir(cwd); err != nil {
+		fmt.Printf("Failed to syscall.chdir: %s\n", err)
+		return subcommands.ExitFailure
+	}
 	fmt.Printf("Set cwd: %s\n", cwd)
 
-	syscall.Sethostname([]byte(spec.Hostname))
+	if err := syscall.Sethostname([]byte(spec.Hostname)); err != nil {
+		fmt.Printf("Failed to syscall.sethostname: %s\n", err)
+		return subcommands.ExitFailure
+	}
 	fmt.Printf("Set hostname: %s\n", spec.Hostname)
 	// TODO: mount files
 	// TODO: set capabilities
 	// TODO: set users
+
+	// set UID / GID
+	uid := int(spec.Process.User.UID)
+	if err := syscall.Setuid(uid); err != nil {
+		fmt.Printf("Failed to syscall.setuid: %s\n", err)
+		return subcommands.ExitFailure
+	}
+	fmt.Printf("Set UID: %d\n", uid)
+
+	gid := int(spec.Process.User.GID)
+	if err := syscall.Setuid(gid); err != nil {
+		fmt.Printf("Failed to syscall.setgid: %s\n", err)
+		return subcommands.ExitFailure
+	}
+	fmt.Printf("Set GID: %d\n", gid)
+
+	// set env
+	for _, envKV := range spec.Process.Env {
+		kv := strings.Split(envKV, "=")
+		key := kv[0]
+		value := kv[1]
+		os.Setenv(key, value)
+		fmt.Printf("Set env: %s\n", envKV)
+	}
 
 	runArgs := spec.Process.Args
 	fmt.Printf("Start container..., args: %v\n", runArgs)
