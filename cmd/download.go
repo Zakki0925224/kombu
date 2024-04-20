@@ -56,5 +56,8 @@ func (t *Download) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{})
 		return subcommands.ExitFailure
 	}
 
+	// remove tmp image
+	os.RemoveAll(tmpImagePath)
+
 	return subcommands.ExitSuccess
 }
