@@ -11,7 +11,7 @@ import (
 
 func main() {
 	subcommands.Register(subcommands.CommandsCommand(), "")
-	subcommands.Register(new(cmd.Run), "")
+	subcommands.Register(new(cmd.Start), "")
 	subcommands.Register(new(cmd.Create), "")
 	subcommands.Register(new(cmd.Delete), "")
 	subcommands.Register(new(cmd.List), "")

@@ -23,14 +23,11 @@ func NewContainer(ociRuntimeBundlePath string) (Container, error) {
 
 	uuidStr := uuidObj.String()
 
-	// create container and rootfs directory
-	if err := os.MkdirAll(RootfsPath(uuidStr), os.ModePerm); err != nil {
+	// create container directory
+	if err := os.MkdirAll(ContainerPath(uuidStr), os.ModePerm); err != nil {
 		return Container{}, err
 	}
-	// copy rootfs
-	if err := cp.Copy(ociRuntimeBundlePath+"/"+ROOTFS_DIR_NAME, RootfsPath(uuidStr)); err != nil {
-		return Container{}, err
-	}
+
 	// copy config.json
 	if err := cp.Copy(ociRuntimeBundlePath+"/"+BUNDLE_CONFIG_FILE_NAME, ConfigFilePath(uuidStr)); err != nil {
 		return Container{}, err
@@ -57,6 +54,11 @@ func NewContainer(ociRuntimeBundlePath string) (Container, error) {
 
 	var spec specs_go.Spec
 	if err := json.Unmarshal(buf, &spec); err != nil {
+		return Container{}, err
+	}
+
+	// copy rootfs
+	if err := cp.Copy(ociRuntimeBundlePath+"/"+spec.Root.Path, RootfsPath(uuidStr, spec.Root.Path)); err != nil {
 		return Container{}, err
 	}
 

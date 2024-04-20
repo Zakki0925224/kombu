@@ -15,17 +15,17 @@ import (
 
 const SELF_PROC_PATH string = "/proc/self/exe"
 
-type Run struct {
+type Start struct {
 	child bool
 }
 
-func (t *Run) Name() string     { return "run" }
-func (t *Run) Synopsis() string { return "run command in the container" }
-func (t *Run) Usage() string    { return "run <container-id> <command...>: " + t.Synopsis() }
-func (t *Run) SetFlags(f *flag.FlagSet) {
-	f.BoolVar(&t.child, "child", false, "run as child process")
+func (t *Start) Name() string     { return "start" }
+func (t *Start) Synopsis() string { return "start container" }
+func (t *Start) Usage() string    { return "start <container-id>: " + t.Synopsis() }
+func (t *Start) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&t.child, "child", false, "start container as child process")
 }
-func (t *Run) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	args := f.Args()
 
 	if !t.child {
@@ -35,9 +35,14 @@ func (t *Run) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subc
 	return t.execChild(args)
 }
 
-func (t *Run) execParent(args []string) subcommands.ExitStatus {
+func (t *Start) execParent(args []string) subcommands.ExitStatus {
+	if len(args) != 1 {
+		fmt.Printf("%s\n", t.Usage())
+		return subcommands.ExitFailure
+	}
+
 	// execute self binary instead of fork
-	cmd := exec.Command(SELF_PROC_PATH, append([]string{"run", "--child"}, args[0:]...)...)
+	cmd := exec.Command(SELF_PROC_PATH, append([]string{"start", "--child"}, args[0:]...)...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -78,7 +83,7 @@ func (t *Run) execParent(args []string) subcommands.ExitStatus {
 	}
 
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("Failed to run container: %s\n", err)
+		fmt.Printf("Failed to start container: %s\n", err)
 		return subcommands.ExitFailure
 	}
 
@@ -86,14 +91,8 @@ func (t *Run) execParent(args []string) subcommands.ExitStatus {
 	return subcommands.ExitSuccess
 }
 
-func (t *Run) execChild(args []string) subcommands.ExitStatus {
-	if len(args) < 2 {
-		fmt.Printf("%s\n", t.Usage())
-		return subcommands.ExitFailure
-	}
-
+func (t *Start) execChild(args []string) subcommands.ExitStatus {
 	cId := args[0]
-	cmdArgs := args[1:]
 
 	r, err := internal.NewRuntime()
 	if err != nil {
@@ -109,15 +108,24 @@ func (t *Run) execChild(args []string) subcommands.ExitStatus {
 
 	spec := c.Spec
 
-	// set rootfs
-	syscall.Chroot(internal.RootfsPath(cId))
-	syscall.Chdir(spec.Process.Cwd)
-	// set hostname
-	syscall.Sethostname([]byte(spec.Hostname))
-	// mount proc
-	//syscall.Mount("proc", "proc", "proc", 0, "")
+	rootFsPath := internal.RootfsPath(cId, spec.Root.Path)
+	syscall.Chroot(rootFsPath)
+	fmt.Printf("Set root: %s\n", rootFsPath)
 
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+	cwd := spec.Process.Cwd
+	syscall.Chdir(cwd)
+	fmt.Printf("Set cwd: %s\n", cwd)
+
+	syscall.Sethostname([]byte(spec.Hostname))
+	fmt.Printf("Set hostname: %s\n", spec.Hostname)
+	// TODO: mount files
+	// TODO: set capabilities
+	// TODO: set users
+
+	runArgs := spec.Process.Args
+	fmt.Printf("Start container..., args: %v\n", runArgs)
+
+	cmd := exec.Command(runArgs[0], runArgs[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

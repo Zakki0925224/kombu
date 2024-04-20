@@ -23,7 +23,8 @@ func (t *List) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) sub
 	}
 
 	for i, c := range r.Containers {
-		fmt.Printf("[%d]: %#v\n", i, c)
+		spec := c.Spec
+		fmt.Printf("[%d]: %s - %s (%s)\n", i, c.Id, spec.Annotations["org.opencontainers.image.ref.name"], spec.Annotations["org.opencontainers.image.version"])
 	}
 
 	return subcommands.ExitSuccess
