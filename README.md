@@ -4,14 +4,14 @@ My own container runtime written in Go (WIP).
 
 "kombu" mean kelp in Japanese.
 
-# Features
+## Features
 
 -   Run on Linux (using namespace, cgroup...)
 -   CLI tool for manage containers
 -   Use OCI runtime bundle
 -   Download Docker image and convert to OCI runtime bundle
 
-# Usage
+## Usage
 
 ```sh
 go build
