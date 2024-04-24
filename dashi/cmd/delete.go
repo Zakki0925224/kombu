@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/Zakki0925224/kombu/internal"
+	"github.com/Zakki0925224/kombu/dashi/internal"
 	"github.com/google/subcommands"
 )
 

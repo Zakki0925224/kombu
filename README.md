@@ -1,21 +1,11 @@
 # kombu
 
-My own container runtime written in Go (WIP).
+My own container runtime project.
 
-"kombu" mean kelp in Japanese.
+## [dashi](/dashi)
 
-## Features
+My own low-level container runtime written in Go.
 
--   Run on Linux (using namespace, cgroup...)
--   CLI tool for manage containers
--   Use OCI runtime bundle
--   Download Docker image and convert to OCI runtime bundle
+## [nabe](/nabe)
 
-## Usage
-
-```sh
-go build
-sudo ./kombu download <Docker image name> <tag> # Need skopeo and umoci
-sudo ./kombu create <OCI runtime bundle path>
-sudo ./kombu start <container-id>
-```
+My own high-level container runtime written in Go.

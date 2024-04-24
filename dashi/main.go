@@ -5,7 +5,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/Zakki0925224/kombu/cmd"
+	"github.com/Zakki0925224/kombu/dashi/cmd"
 	"github.com/google/subcommands"
 )
 

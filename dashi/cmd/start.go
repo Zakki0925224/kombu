@@ -9,7 +9,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Zakki0925224/kombu/internal"
+	"github.com/Zakki0925224/kombu/dashi/internal"
 	"github.com/google/subcommands"
 	specs_go "github.com/opencontainers/runtime-spec/specs-go"
 )
