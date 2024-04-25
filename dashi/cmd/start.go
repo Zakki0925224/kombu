@@ -62,9 +62,15 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 	}
 
 	spec := c.Spec
+	state := c.State
+
+	if state.Status == specs_go.StateRunning {
+		fmt.Printf("Container is running: %s\n", args[0])
+		return subcommands.ExitFailure
+	}
 
 	// create new namespace
-	flags := 0
+	flags := uintptr(0)
 	for _, ns := range spec.Linux.Namespaces {
 		switch ns.Type {
 		case specs_go.PIDNamespace:
@@ -81,11 +87,23 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 	}
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: uintptr(flags),
+		Cloneflags: flags,
+	}
+
+	c.State.Status = specs_go.StateRunning
+	if err := c.SaveContainer(); err != nil {
+		fmt.Printf("Failed to save container: %s\n", err)
+		return subcommands.ExitFailure
 	}
 
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("Failed to start container: %s\n", err)
+		return subcommands.ExitFailure
+	}
+
+	c.State.Status = specs_go.StateStopped
+	if err := c.SaveContainer(); err != nil {
+		fmt.Printf("Failed to save container: %s\n", err)
 		return subcommands.ExitFailure
 	}
 
@@ -176,11 +194,11 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 		source := m.Source
 		dest := m.Destination
 		mType := m.Type
-		flag := uintptr(0)
+		flags := uintptr(0)
 
 		for _, o := range m.Options {
 			if f, ok := mFlags[o]; ok {
-				flag |= f
+				flags |= f
 			}
 			// else {
 			// 	fmt.Printf("Undefined mount option: %s\n", o)
@@ -188,7 +206,7 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 			// }
 		}
 
-		if err := unix.Mount(source, dest, mType, flag, ""); err != nil {
+		if err := unix.Mount(source, dest, mType, flags, ""); err != nil {
 			fmt.Printf("Failed to mount %s: %s\n", source, err)
 			//return subcommands.ExitFailure
 		}
@@ -230,6 +248,14 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Run()
+
+	for _, m := range spec.Mounts {
+		dest := m.Destination
+
+		if err := unix.Unmount(dest, 0); err != nil {
+			fmt.Printf("Failed to unmount %s: %s\n", dest, err)
+		}
+	}
 
 	return subcommands.ExitSuccess
 }

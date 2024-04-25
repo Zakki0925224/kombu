@@ -11,8 +11,9 @@ import (
 )
 
 type Container struct {
-	Id   string
-	Spec specs_go.Spec
+	Id    string
+	Spec  specs_go.Spec
+	State specs_go.State
 }
 
 func NewContainer(containerId string, ociRuntimeBundlePath string) (Container, error) {
@@ -32,32 +33,16 @@ func NewContainer(containerId string, ociRuntimeBundlePath string) (Container, e
 		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
+
 	// read config file
-	f, err := os.Open(ConfigFilePath(containerId))
+	bytes, err := os.ReadFile(ConfigFilePath(containerId))
 	if err != nil {
-		os.RemoveAll(containerPath)
-		return Container{}, err
-	}
-
-	fStat, err := f.Stat()
-	if err != nil {
-		os.RemoveAll(containerPath)
-		return Container{}, err
-	}
-
-	fSize := fStat.Size()
-	buf := make([]byte, fSize)
-	if _, err := f.Read(buf); err != nil {
-		os.RemoveAll(containerPath)
-		return Container{}, err
-	}
-	if err := f.Close(); err != nil {
 		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
 
 	var spec specs_go.Spec
-	if err := json.Unmarshal(buf, &spec); err != nil {
+	if err := json.Unmarshal(bytes, &spec); err != nil {
 		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
@@ -68,9 +53,38 @@ func NewContainer(containerId string, ociRuntimeBundlePath string) (Container, e
 		return Container{}, err
 	}
 
+	// create state
+	state := specs_go.State{
+		Version:     spec.Version,
+		ID:          containerId,
+		Status:      specs_go.StateCreated,
+		Pid:         0,
+		Bundle:      ociRuntimeBundlePath,
+		Annotations: make(map[string]string),
+	}
+
+	// save state to file
+	stateJson, err := json.Marshal(state)
+	if err != nil {
+		return Container{}, fmt.Errorf("Failed to convert state to json: %s", err)
+	}
+
+	file, err := os.Create(StateFilePath(containerId))
+	if err != nil {
+		return Container{}, fmt.Errorf("Failed to save state file: %s", err)
+	}
+	if _, err := file.Write(stateJson); err != nil {
+		return Container{}, fmt.Errorf("Failed to save state file: %s", err)
+	}
+
+	if err := file.Close(); err != nil {
+		return Container{}, fmt.Errorf("Failed to close state file: %s", err)
+	}
+
 	return Container{
-		Id:   containerId,
-		Spec: spec,
+		Id:    containerId,
+		Spec:  spec,
+		State: state,
 	}, nil
 }
 
@@ -81,6 +95,8 @@ func FindContainersFromDirectory() ([]Container, error) {
 		return cs, err
 	}
 
+	var spec specs_go.Spec
+	var state specs_go.State
 	err := filepath.Walk(CONTAINERS_PATH, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return filepath.SkipDir
@@ -95,34 +111,29 @@ func FindContainersFromDirectory() ([]Container, error) {
 		}
 
 		// read config file
-		f, err := os.Open(ConfigFilePath(info.Name()))
+		bytes, err := os.ReadFile(ConfigFilePath(info.Name()))
 		if err != nil {
 			return err
 		}
 
-		fStat, err := f.Stat()
+		if err := json.Unmarshal(bytes, &spec); err != nil {
+			return err
+		}
+
+		// read state file
+		bytes, err = os.ReadFile(StateFilePath(info.Name()))
 		if err != nil {
 			return err
 		}
 
-		fSize := fStat.Size()
-		buf := make([]byte, fSize)
-		if _, err := f.Read(buf); err != nil {
-			return err
-		}
-
-		if err := f.Close(); err != nil {
-			return err
-		}
-
-		var spec specs_go.Spec
-		if err := json.Unmarshal(buf, &spec); err != nil {
+		if err := json.Unmarshal(bytes, &state); err != nil {
 			return err
 		}
 
 		cs = append(cs, Container{
-			Id:   info.Name(),
-			Spec: spec,
+			Id:    info.Name(),
+			Spec:  spec,
+			State: state,
 		})
 
 		return filepath.SkipDir
@@ -137,4 +148,26 @@ func FindContainersFromDirectory() ([]Container, error) {
 
 func (c *Container) DeleteContainerDirectory() error {
 	return os.RemoveAll(CONTAINERS_PATH + "/" + c.Id)
+}
+
+func (c *Container) SaveContainer() error {
+	// save state to file
+	stateJson, err := json.Marshal(c.State)
+	if err != nil {
+		return fmt.Errorf("Failed to convert state to json: %s", err)
+	}
+
+	file, err := os.Create(StateFilePath(c.Id))
+	if err != nil {
+		return fmt.Errorf("Failed to create state file: %s", err)
+	}
+	if _, err := file.Write(stateJson); err != nil {
+		return fmt.Errorf("Failed to write state file: %s", err)
+	}
+
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("Failed to close state file: %s", err)
+	}
+
+	return nil
 }

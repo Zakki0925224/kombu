@@ -3,6 +3,7 @@ package internal
 const CONTAINERS_PATH string = "./containers"
 const OCI_RUNTIME_BUNDLES_PATH string = "./bundles"
 const BUNDLE_CONFIG_FILE_NAME string = "config.json"
+const CONTAINER_STATE_FILE_NAME string = "state.json"
 
 func ContainerPath(cId string) string {
 	return CONTAINERS_PATH + "/" + cId
@@ -14,4 +15,8 @@ func RootfsPath(cId string, dirPath string) string {
 
 func ConfigFilePath(cId string) string {
 	return ContainerPath(cId) + "/" + BUNDLE_CONFIG_FILE_NAME
+}
+
+func StateFilePath(cId string) string {
+	return ContainerPath(cId) + "/" + CONTAINER_STATE_FILE_NAME
 }
