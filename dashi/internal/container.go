@@ -58,7 +58,7 @@ func NewContainer(containerId string, ociRuntimeBundlePath string) (Container, e
 		Version:     spec.Version,
 		ID:          containerId,
 		Status:      specs_go.StateCreated,
-		Pid:         0,
+		Pid:         -1,
 		Bundle:      ociRuntimeBundlePath,
 		Annotations: make(map[string]string),
 	}
@@ -150,7 +150,7 @@ func (c *Container) DeleteContainerDirectory() error {
 	return os.RemoveAll(CONTAINERS_PATH + "/" + c.Id)
 }
 
-func (c *Container) SaveContainer() error {
+func (c *Container) Save() error {
 	// save state to file
 	stateJson, err := json.Marshal(c.State)
 	if err != nil {
@@ -167,6 +167,29 @@ func (c *Container) SaveContainer() error {
 
 	if err := file.Close(); err != nil {
 		return fmt.Errorf("Failed to close state file: %s", err)
+	}
+
+	return nil
+}
+
+func (c *Container) Kill() error {
+	if c.State.Status != specs_go.StateRunning && c.State.Pid == -1 {
+		return fmt.Errorf("Container is not running")
+	}
+
+	// kill container process
+	p, err := os.FindProcess(c.State.Pid)
+	if err != nil {
+		return err
+	}
+	if err := p.Kill(); err != nil {
+		return err
+	}
+
+	c.State.Status = specs_go.StateStopped
+	c.State.Pid = -1
+	if err := c.Save(); err != nil {
+		return err
 	}
 
 	return nil

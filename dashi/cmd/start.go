@@ -64,7 +64,7 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 	spec := c.Spec
 	state := c.State
 
-	if state.Status == specs_go.StateRunning {
+	if state.Status == specs_go.StateRunning && state.Pid != -1 {
 		fmt.Printf("Container is running: %s\n", args[0])
 		return subcommands.ExitFailure
 	}
@@ -91,7 +91,8 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 	}
 
 	c.State.Status = specs_go.StateRunning
-	if err := c.SaveContainer(); err != nil {
+	c.State.Pid = os.Getpid()
+	if err := c.Save(); err != nil {
 		fmt.Printf("Failed to save container: %s\n", err)
 		return subcommands.ExitFailure
 	}
@@ -102,7 +103,8 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 	}
 
 	c.State.Status = specs_go.StateStopped
-	if err := c.SaveContainer(); err != nil {
+	c.State.Pid = -1
+	if err := c.Save(); err != nil {
 		fmt.Printf("Failed to save container: %s\n", err)
 		return subcommands.ExitFailure
 	}
