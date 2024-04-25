@@ -25,8 +25,8 @@ func NewRuntime() (Runtime, error) {
 	}, nil
 }
 
-func (r *Runtime) CreateContainer(ociRuntimeBundlePath string) (string, error) {
-	c, err := NewContainer(ociRuntimeBundlePath)
+func (r *Runtime) CreateContainer(containerId string, ociRuntimeBundlePath string) (string, error) {
+	c, err := NewContainer(containerId, ociRuntimeBundlePath)
 	if err != nil {
 		return "", err
 	}

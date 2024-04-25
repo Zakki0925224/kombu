@@ -2,10 +2,10 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/google/uuid"
 	specs_go "github.com/opencontainers/runtime-spec/specs-go"
 	cp "github.com/otiai10/copy"
 )
@@ -15,55 +15,61 @@ type Container struct {
 	Spec specs_go.Spec
 }
 
-func NewContainer(ociRuntimeBundlePath string) (Container, error) {
-	uuidObj, err := uuid.NewRandom()
-	if err != nil {
-		return Container{}, err
+func NewContainer(containerId string, ociRuntimeBundlePath string) (Container, error) {
+	containerPath := ContainerPath(containerId)
+
+	if _, err := os.Stat(containerPath); err == nil {
+		return Container{}, fmt.Errorf("Container id already exists: %s", containerId)
 	}
 
-	uuidStr := uuidObj.String()
-
 	// create container directory
-	if err := os.MkdirAll(ContainerPath(uuidStr), os.ModePerm); err != nil {
+	if err := os.MkdirAll(containerPath, os.ModePerm); err != nil {
 		return Container{}, err
 	}
 
 	// copy config.json
-	if err := cp.Copy(ociRuntimeBundlePath+"/"+BUNDLE_CONFIG_FILE_NAME, ConfigFilePath(uuidStr)); err != nil {
+	if err := cp.Copy(ociRuntimeBundlePath+"/"+BUNDLE_CONFIG_FILE_NAME, ConfigFilePath(containerId)); err != nil {
+		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
 	// read config file
-	f, err := os.Open(ConfigFilePath(uuidStr))
+	f, err := os.Open(ConfigFilePath(containerId))
 	if err != nil {
+		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
 
 	fStat, err := f.Stat()
 	if err != nil {
+		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
 
 	fSize := fStat.Size()
 	buf := make([]byte, fSize)
 	if _, err := f.Read(buf); err != nil {
+		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
 	if err := f.Close(); err != nil {
+		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
 
 	var spec specs_go.Spec
 	if err := json.Unmarshal(buf, &spec); err != nil {
+		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
 
 	// copy rootfs
-	if err := cp.Copy(ociRuntimeBundlePath+"/"+spec.Root.Path, RootfsPath(uuidStr, spec.Root.Path)); err != nil {
+	if err := cp.Copy(ociRuntimeBundlePath+"/"+spec.Root.Path, RootfsPath(containerId, spec.Root.Path)); err != nil {
+		os.RemoveAll(containerPath)
 		return Container{}, err
 	}
 
 	return Container{
-		Id:   uuidStr,
+		Id:   containerId,
 		Spec: spec,
 	}, nil
 }

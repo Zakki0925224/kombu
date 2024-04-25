@@ -12,6 +12,7 @@ import (
 	"github.com/Zakki0925224/kombu/dashi/internal"
 	"github.com/google/subcommands"
 	specs_go "github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/unix"
 )
 
 const SELF_PROC_PATH string = "/proc/self/exe"
@@ -128,7 +129,72 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 		return subcommands.ExitFailure
 	}
 	fmt.Printf("Set hostname: %s\n", spec.Hostname)
-	// TODO: mount files
+
+	mFlags := map[string]uintptr{
+		"async":         unix.MS_ASYNC,
+		"atime":         0,
+		"bind":          unix.MS_BIND,
+		"defaults":      0,
+		"dev":           unix.MS_NODEV,
+		"diratime":      0,
+		"dirsync":       unix.MS_DIRSYNC,
+		"exec":          0,
+		"iversion":      unix.MS_I_VERSION,
+		"lazytime":      unix.MS_LAZYTIME,
+		"loud":          0,
+		"noatime":       unix.MS_NOATIME,
+		"nodev":         unix.MS_NODEV,
+		"nodiratime":    unix.MS_NODIRATIME,
+		"noexec":        unix.MS_NOEXEC,
+		"noiversion":    0,
+		"nolazytime":    unix.MS_RELATIME,
+		"norelatime":    unix.MS_RELATIME,
+		"nostrictatime": unix.MS_RELATIME,
+		"nosuid":        unix.MS_NOSUID,
+		"private":       unix.MS_PRIVATE,
+		"rbind":         unix.MS_BIND | unix.MS_REC,
+		"rdev":          unix.MS_NODEV | unix.MS_REC,
+		"rdiratime":     0 | unix.MS_REC,
+		"relatime":      unix.MS_RELATIME,
+		"remount":       unix.MS_REMOUNT,
+		"ro":            unix.MS_RDONLY,
+		"rprivate":      unix.MS_PRIVATE | unix.MS_REC,
+		"rshared":       unix.MS_SHARED | unix.MS_REC,
+		"rslave":        unix.MS_SLAVE | unix.MS_REC,
+		"runbindable":   unix.MS_UNBINDABLE | unix.MS_REC,
+		"rw":            0,
+		"shared":        unix.MS_SHARED,
+		"silent":        0,
+		"slave":         unix.MS_SLAVE,
+		"strictatime":   unix.MS_STRICTATIME,
+		"suid":          0,
+		"sync":          unix.MS_SYNC,
+		"unbindable":    unix.MS_UNBINDABLE,
+	}
+
+	for _, m := range spec.Mounts {
+		source := m.Source
+		dest := m.Destination
+		mType := m.Type
+		flag := uintptr(0)
+
+		for _, o := range m.Options {
+			if f, ok := mFlags[o]; ok {
+				flag |= f
+			}
+			// else {
+			// 	fmt.Printf("Undefined mount option: %s\n", o)
+			// 	return subcommands.ExitFailure
+			// }
+		}
+
+		if err := unix.Mount(source, dest, mType, flag, ""); err != nil {
+			fmt.Printf("Failed to mount %s: %s\n", source, err)
+			//return subcommands.ExitFailure
+		}
+		fmt.Printf("Mount %s to %s\n", source, dest)
+	}
+
 	// TODO: set capabilities
 	// TODO: set users
 
