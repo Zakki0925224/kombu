@@ -31,8 +31,8 @@ def task_build_nabe():
 
 
 def task_build_yaminabe():
-    run_cmd("cargo build --release", dir=YAMINABE)
-    run_cmd(f"cp target/release/{YAMINABE} ../{OUTPUT_DIR}/{YAMINABE}", dir=YAMINABE)
+    run_cmd("cargo build", dir=YAMINABE)
+    run_cmd(f"cp target/debug/{YAMINABE} ../{OUTPUT_DIR}/{YAMINABE}", dir=YAMINABE)
 
 
 def task_build():
