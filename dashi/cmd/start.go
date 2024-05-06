@@ -100,50 +100,8 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 		return subcommands.ExitFailure
 	}
 
-	if err := c.SetSpecChroot(); err != nil {
-		fmt.Printf("Failed to set chroot: %s\n", err)
-		return subcommands.ExitFailure
-	}
-
-	if err := c.SetSpecChdir(); err != nil {
-		fmt.Printf("Failed to set chdir: %s\n", err)
-		return subcommands.ExitFailure
-	}
-
-	if err := c.SetSpecHostname(); err != nil {
-		fmt.Printf("Failed to set hostname: %s\n", err)
-		return subcommands.ExitFailure
-	}
-
-	if err := c.SetSpecMounts(); err != nil {
-		fmt.Printf("Failed to mount: %s\n", err)
-		return subcommands.ExitFailure
-	}
-	// TODO: set users
-
-	if err := c.SetSpecUid(); err != nil {
-		fmt.Printf("Failed to set uid: %s\n", err)
-		return subcommands.ExitFailure
-	}
-
-	if err := c.SetSpecGid(); err != nil {
-		fmt.Printf("Failed to set gid: %s\n", err)
-		return subcommands.ExitFailure
-	}
-
-	if err := c.SetSpecCapabilities(); err != nil {
-		fmt.Printf("Failed to set capabilities: %s\n", err)
-		return subcommands.ExitFailure
-	}
-
-	if err := c.SetSpecEnv(); err != nil {
-		fmt.Printf("Failed to set env: %s\n", err)
-		return subcommands.ExitFailure
-	}
-
-	c.Start()
-	if err := c.Unmount(); err != nil {
-		fmt.Printf("Failed to unmount: %s\n", err)
+	if err := c.Start(nil); err != nil {
+		fmt.Printf("Failed to start container: %s\n", err)
 		return subcommands.ExitFailure
 	}
 

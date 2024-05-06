@@ -14,6 +14,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+type StartOption struct {
+	Args []string
+}
+
 type Container struct {
 	Id        string
 	Spec      specs_go.Spec
@@ -202,15 +206,61 @@ func (c *Container) Kill() error {
 	return nil
 }
 
-func (c *Container) Start() {
+func (c *Container) Start(opt *StartOption) error {
+	if err := c.SetSpecHostname(); err != nil {
+		return fmt.Errorf("Failed to set hostname: %s", err)
+	}
+
+	if err := c.SetSpecMounts(); err != nil {
+		return fmt.Errorf("Failed to set mounts: %s", err)
+	}
+
+	if err := c.SetSpecChroot(); err != nil {
+		return fmt.Errorf("Failed to set chroot: %s", err)
+	}
+
+	if err := c.SetSpecChdir(); err != nil {
+		return fmt.Errorf("Failed to set chdir: %s", err)
+	}
+
+	if err := c.SetSpecUid(); err != nil {
+		return fmt.Errorf("Failed to set uid: %s", err)
+	}
+
+	if err := c.SetSpecGid(); err != nil {
+		return fmt.Errorf("Failed to set gid: %s", err)
+	}
+
+	// if err := c.SetSpecCapabilities(); err != nil {
+	// 	return fmt.Errorf("Failed to set capabilities: %s", err)
+	// }
+
+	if err := c.SetSpecEnv(); err != nil {
+		return fmt.Errorf("Failed to set env: %s", err)
+	}
+
 	runArgs := c.Spec.Process.Args
+
+	if opt != nil && len(opt.Args) > 0 {
+		runArgs = opt.Args
+	}
+
 	fmt.Printf("Start container..., args: %v\n", runArgs)
 
 	cmd := exec.Command(runArgs[0], runArgs[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
+
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Failed to run command: %s\n", err)
+	}
+
+	if err := c.Unmount(); err != nil {
+		return fmt.Errorf("Failed to unmount: %s", err)
+	}
+
+	return nil
 }
 
 func (c *Container) IsRunningContainer() bool {
@@ -311,9 +361,11 @@ func (c *Container) SetSpecMounts() error {
 		"unbindable":    unix.MS_UNBINDABLE,
 	}
 
+	rootFsPath := RootfsPath(c.Id, c.Spec.Root.Path)
+
 	for _, m := range c.Spec.Mounts {
 		source := m.Source
-		dest := m.Destination
+		dest := rootFsPath + m.Destination
 		mType := m.Type
 		flags := uintptr(0)
 
@@ -330,9 +382,10 @@ func (c *Container) SetSpecMounts() error {
 		if err := unix.Mount(source, dest, mType, flags, ""); err != nil {
 			fmt.Printf("Failed to mount %s: %s\n", source, err)
 			//return subcommands.ExitFailure
+		} else {
+			fmt.Printf("Mount %s to %s\n", source, dest)
+			c.MountList = append(c.MountList, m.Destination)
 		}
-		fmt.Printf("Mount %s to %s\n", source, dest)
-		c.MountList = append(c.MountList, dest)
 	}
 
 	return nil

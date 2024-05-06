@@ -1,6 +1,6 @@
 # dashi
 
-My own low-level container runtime written in Go.
+My own container runtime written in Go.
 
 ## Features
 
@@ -14,6 +14,6 @@ My own low-level container runtime written in Go.
 ```sh
 go build
 sudo ./dashi download <Docker image name> <tag> # Need skopeo and umoci
-sudo ./dashi create <OCI runtime bundle path>
+sudo ./dashi create <container-id> <OCI runtime bundle path>
 sudo ./dashi start <container-id>
 ```

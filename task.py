@@ -4,7 +4,6 @@ import sys
 
 OUTPUT_DIR = "build"
 DASHI = "dashi"
-NABE = "nabe"
 YAMINABE = "yaminabe"
 
 
@@ -26,10 +25,6 @@ def task_build_dashi():
     run_cmd(f"go build -o ../{OUTPUT_DIR}/{DASHI}", dir=DASHI)
 
 
-def task_build_nabe():
-    run_cmd(f"go build -o ../{OUTPUT_DIR}/{NABE}", dir=NABE)
-
-
 def task_build_yaminabe():
     run_cmd("cargo build", dir=YAMINABE)
     run_cmd(f"cp target/debug/{YAMINABE} ../{OUTPUT_DIR}/{YAMINABE}", dir=YAMINABE)
@@ -38,11 +33,10 @@ def task_build_yaminabe():
 def task_build():
     task_clear()
     task_build_dashi()
-    task_build_nabe()
     task_build_yaminabe()
 
 
-TASKS = [task_clear, task_build_dashi, task_build_nabe, task_build]
+TASKS = [task_clear, task_build_dashi, task_build]
 
 if __name__ == "__main__":
     args = sys.argv
