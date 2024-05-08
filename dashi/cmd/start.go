@@ -15,7 +15,9 @@ import (
 const SELF_PROC_PATH string = "/proc/self/exe"
 
 type Start struct {
-	child bool
+	child       bool
+	mountSource string
+	mountDest   string
 }
 
 func (t *Start) Name() string     { return "start" }
@@ -23,6 +25,8 @@ func (t *Start) Synopsis() string { return "start container" }
 func (t *Start) Usage() string    { return "start <container-id>: " + t.Synopsis() }
 func (t *Start) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&t.child, "child", false, "start container as child process")
+	f.StringVar(&t.mountSource, "mount-source", "", "mount source path")
+	f.StringVar(&t.mountDest, "mount-dest", "", "mount destination path")
 }
 func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	args := f.Args()
@@ -40,8 +44,17 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 		return subcommands.ExitFailure
 	}
 
+	newArgs := []string{"start", "--child"}
+	if t.mountSource != "" {
+		newArgs = append(newArgs, "-mount-source="+t.mountSource)
+	}
+	if t.mountDest != "" {
+		newArgs = append(newArgs, "-mount-dest="+t.mountDest)
+	}
+	newArgs = append(newArgs, args[0:]...)
+
 	// execute self binary instead of fork
-	cmd := exec.Command(SELF_PROC_PATH, append([]string{"start", "--child"}, args[0:]...)...)
+	cmd := exec.Command(SELF_PROC_PATH, newArgs...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -100,7 +113,19 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 		return subcommands.ExitFailure
 	}
 
-	if err := c.Start(nil); err != nil {
+	if (t.mountSource != "" && t.mountDest == "") ||
+		(t.mountSource == "" && t.mountDest != "") {
+		fmt.Printf("Invalid flags\n")
+		return subcommands.ExitFailure
+	}
+
+	startOption := &internal.StartOption{
+		Args:            []string{},
+		UserMountSource: t.mountSource,
+		UserMountDest:   t.mountDest,
+	}
+
+	if err := c.Start(startOption); err != nil {
 		fmt.Printf("Failed to start container: %s\n", err)
 		return subcommands.ExitFailure
 	}

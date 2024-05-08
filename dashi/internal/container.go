@@ -15,7 +15,9 @@ import (
 )
 
 type StartOption struct {
-	Args []string
+	Args            []string
+	UserMountSource string
+	UserMountDest   string
 }
 
 type Container struct {
@@ -211,7 +213,7 @@ func (c *Container) Start(opt *StartOption) error {
 		return fmt.Errorf("Failed to set hostname: %s", err)
 	}
 
-	if err := c.SetSpecMounts(); err != nil {
+	if err := c.SetSpecMounts(opt.UserMountSource, opt.UserMountDest); err != nil {
 		return fmt.Errorf("Failed to set mounts: %s", err)
 	}
 
@@ -318,7 +320,7 @@ func (c *Container) SetSpecHostname() error {
 	return nil
 }
 
-func (c *Container) SetSpecMounts() error {
+func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) error {
 	mFlags := map[string]uintptr{
 		"async":         unix.MS_ASYNC,
 		"atime":         0,
@@ -363,7 +365,17 @@ func (c *Container) SetSpecMounts() error {
 
 	rootFsPath := RootfsPath(c.Id, c.Spec.Root.Path)
 
-	for _, m := range c.Spec.Mounts {
+	mounts := c.Spec.Mounts
+	if userMountSource != "" && userMountDest != "" {
+		mounts = append(mounts, specs_go.Mount{
+			Destination: userMountDest,
+			Type:        "bind",
+			Source:      userMountSource,
+			Options:     []string{"rbind", "rw"},
+		})
+	}
+
+	for _, m := range mounts {
 		source := m.Source
 		dest := rootFsPath + m.Destination
 		mType := m.Type
