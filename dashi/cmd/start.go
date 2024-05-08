@@ -22,7 +22,7 @@ type Start struct {
 
 func (t *Start) Name() string     { return "start" }
 func (t *Start) Synopsis() string { return "start container" }
-func (t *Start) Usage() string    { return "start <container-id>: " + t.Synopsis() }
+func (t *Start) Usage() string    { return "start <container-id> |<commands>|: " + t.Synopsis() }
 func (t *Start) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&t.child, "child", false, "start container as child process")
 	f.StringVar(&t.mountSource, "mount-source", "", "mount source path")
@@ -39,7 +39,7 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 }
 
 func (t *Start) execParent(args []string) subcommands.ExitStatus {
-	if len(args) != 1 {
+	if len(args) == 0 {
 		fmt.Printf("%s\n", t.Usage())
 		return subcommands.ExitFailure
 	}
@@ -120,7 +120,7 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 	}
 
 	startOption := &internal.StartOption{
-		Args:            []string{},
+		Args:            args[1:],
 		UserMountSource: t.mountSource,
 		UserMountDest:   t.mountDest,
 	}
