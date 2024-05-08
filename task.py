@@ -1,8 +1,10 @@
 import subprocess
 import sys
+import os
 
 
 OUTPUT_DIR = "build"
+TARGETS_PATH = "target_programs"
 DASHI = "dashi"
 YAMINABE = "yaminabe"
 
@@ -30,13 +32,29 @@ def task_build_yaminabe():
     run_cmd(f"cp target/debug/{YAMINABE} ../{OUTPUT_DIR}/{YAMINABE}", dir=YAMINABE)
 
 
+def task_build_specimens():
+    d = f"./{TARGETS_PATH}"
+    dirs = [f for f in os.listdir(d) if os.path.isdir(os.path.join(d, f))]
+
+    for dir_name in dirs:
+        pwd = f"{d}/{dir_name}"
+
+        run_cmd("cargo build", dir=pwd)
+
+
 def task_build():
     task_clear()
+    task_build_specimens()
     task_build_dashi()
     task_build_yaminabe()
 
 
-TASKS = [task_clear, task_build_dashi, task_build]
+def task_run_hello():
+    task_build()
+    run_cmd("./build/yaminabe -t ./target_programs/hello/target/debug/hello -o 10")
+
+
+TASKS = [task_clear, task_build_dashi, task_build, task_run_hello]
 
 if __name__ == "__main__":
     args = sys.argv
