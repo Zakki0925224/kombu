@@ -32,6 +32,12 @@ func (t *Download) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{})
 
 	bundleImagePath := internal.OCI_RUNTIME_BUNDLES_PATH + "/" + imageName + "-" + tag
 	tmpImagePath := bundleImagePath + "-tmp"
+
+	// if already exists, skip download
+	if _, err := os.Stat(bundleImagePath); err == nil {
+		return subcommands.ExitSuccess
+	}
+
 	os.MkdirAll(tmpImagePath, os.ModePerm)
 
 	// download docker image using skopeo
@@ -46,6 +52,7 @@ func (t *Download) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{})
 	}
 
 	// convert docker image to OCI runtime bundle
+
 	umoci := exec.Command("umoci", []string{"unpack", "--image", tmpImagePath, bundleImagePath}...)
 	umoci.Stdout = os.Stdout
 	umoci.Stderr = os.Stderr
@@ -53,10 +60,10 @@ func (t *Download) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{})
 	if err := umoci.Run(); err != nil {
 		fmt.Printf("Failed to execute command: %v: %s\n", umoci, err)
 		os.RemoveAll(bundleImagePath)
+		os.RemoveAll(tmpImagePath)
 		return subcommands.ExitFailure
 	}
 
-	// remove tmp image
 	os.RemoveAll(tmpImagePath)
 
 	return subcommands.ExitSuccess
