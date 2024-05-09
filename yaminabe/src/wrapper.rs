@@ -42,7 +42,7 @@ pub fn download_oci_container_bundle(docker_image_name: &str, tag: &str) -> Resu
 }
 
 pub fn create_container(container_id: &str, oci_runtime_bundle_path: &str) -> Result<()> {
-    let mut cmd = runtime_cmd(&["create", container_id, oci_runtime_bundle_path], false);
+    let mut cmd = runtime_cmd(&["create", container_id, oci_runtime_bundle_path], true);
     let output = cmd.output()?;
     output_to_result(output)?;
     Ok(())
@@ -60,10 +60,9 @@ pub fn start_container(
             "start",
             &format!("-mount-source={}", mount_source_path),
             &format!("-mount-dest={}", mount_dest_path),
-            "-user",
             container_id,
         ],
-        false,
+        true,
     );
     if let Some(command) = command {
         info!("Running command in the container: {:?}", command);

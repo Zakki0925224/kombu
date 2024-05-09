@@ -215,41 +215,49 @@ func (c *Container) Start(opt *StartOption) error {
 		return fmt.Errorf("Failed to set hostname: %s", err)
 	}
 
+	// if err := c.SetSpecCapabilities(); err != nil {
+	// 	return fmt.Errorf("Failed to set capabilities: %s", err)
+	// }
+
 	if err := c.SetSpecMounts(opt.UserMountSource, opt.UserMountDest); err != nil {
+		c.Unmount()
 		return fmt.Errorf("Failed to set mounts: %s", err)
 	}
 
 	if err := c.SetSpecUid(); err != nil {
+		c.Unmount()
 		return fmt.Errorf("Failed to set uid: %s", err)
 	}
 
 	if err := c.SetSpecGid(); err != nil {
+		c.Unmount()
 		return fmt.Errorf("Failed to set gid: %s", err)
 	}
 
 	if opt.User {
 		if err := c.MapNewUid(); err != nil {
+			c.Unmount()
 			return fmt.Errorf("Failed to map new uid: %s", err)
 		}
 
 		if err := c.MapNewGid(); err != nil {
+			c.Unmount()
 			return fmt.Errorf("Failed to map new gid: %s", err)
 		}
 	}
 
 	if err := c.SetSpecChroot(); err != nil {
+		c.Unmount()
 		return fmt.Errorf("Failed to set chroot: %s", err)
 	}
 
 	if err := c.SetSpecChdir(); err != nil {
+		c.Unmount()
 		return fmt.Errorf("Failed to set chdir: %s", err)
 	}
 
-	// if err := c.SetSpecCapabilities(); err != nil {
-	// 	return fmt.Errorf("Failed to set capabilities: %s", err)
-	// }
-
 	if err := c.SetSpecEnv(); err != nil {
+		c.Unmount()
 		return fmt.Errorf("Failed to set env: %s", err)
 	}
 
@@ -267,12 +275,11 @@ func (c *Container) Start(opt *StartOption) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
+		c.Unmount()
 		fmt.Printf("Failed to run command: %s\n", err)
 	}
 
-	if err := c.Unmount(); err != nil {
-		return fmt.Errorf("Failed to unmount: %s", err)
-	}
+	c.Unmount()
 
 	return nil
 }
@@ -431,6 +438,7 @@ func (c *Container) SetSpecCapabilities() error {
 		"CAP_IPC_LOCK":           unix.CAP_IPC_LOCK,
 		"CAP_IPC_OWNER":          unix.CAP_IPC_OWNER,
 		"CAP_KILL":               unix.CAP_KILL,
+		"CAP_LAST_CAP":           unix.CAP_LAST_CAP,
 		"CAP_LEASE":              unix.CAP_LEASE,
 		"CAP_LINUX_IMMUTABLE":    unix.CAP_LINUX_IMMUTABLE,
 		"CAP_MAC_ADMIN":          unix.CAP_MAC_ADMIN,
@@ -461,7 +469,6 @@ func (c *Container) SetSpecCapabilities() error {
 	}
 
 	caps := c.Spec.Process.Capabilities
-	capData := unix.CapUserData{}
 	capHeader := unix.CapUserHeader{
 		Version: unix.LINUX_CAPABILITY_VERSION_3,
 		Pid:     int32(c.State.Pid),
@@ -473,7 +480,6 @@ func (c *Container) SetSpecCapabilities() error {
 			eCaps |= uint32(c)
 		}
 	}
-	capData.Effective = eCaps
 
 	pCaps := uint32(0)
 	for _, e := range caps.Permitted {
@@ -481,7 +487,6 @@ func (c *Container) SetSpecCapabilities() error {
 			pCaps |= uint32(c)
 		}
 	}
-	capData.Permitted = pCaps
 
 	iCaps := uint32(0)
 	for _, e := range caps.Inheritable {
@@ -489,7 +494,12 @@ func (c *Container) SetSpecCapabilities() error {
 			iCaps |= uint32(c)
 		}
 	}
-	capData.Inheritable = iCaps
+
+	capData := unix.CapUserData{
+		Effective:   eCaps,
+		Permitted:   pCaps,
+		Inheritable: iCaps,
+	}
 
 	if err := unix.Capset(&capHeader, &capData); err != nil {
 		return err
@@ -590,15 +600,16 @@ func (c *Container) MapNewGid() error {
 	return nil
 }
 
-func (c *Container) Unmount() error {
+func (c *Container) Unmount() {
 	for _, dest := range c.MountList {
 		if err := unix.Unmount(dest, 0); err != nil {
 			fmt.Printf("Failed to unmount %s: %s\n", dest, err)
+		} else {
+			fmt.Printf("Unmount %s\n", dest)
 		}
 	}
 
 	c.MountList = make([]string, 0)
-	return nil
 }
 
 func (c *Container) SetStateRunning() error {
