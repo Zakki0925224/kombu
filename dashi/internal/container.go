@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -18,6 +19,7 @@ type StartOption struct {
 	Args            []string
 	UserMountSource string
 	UserMountDest   string
+	User            bool
 }
 
 type Container struct {
@@ -217,20 +219,30 @@ func (c *Container) Start(opt *StartOption) error {
 		return fmt.Errorf("Failed to set mounts: %s", err)
 	}
 
-	if err := c.SetSpecChroot(); err != nil {
-		return fmt.Errorf("Failed to set chroot: %s", err)
-	}
-
-	if err := c.SetSpecChdir(); err != nil {
-		return fmt.Errorf("Failed to set chdir: %s", err)
-	}
-
 	if err := c.SetSpecUid(); err != nil {
 		return fmt.Errorf("Failed to set uid: %s", err)
 	}
 
 	if err := c.SetSpecGid(); err != nil {
 		return fmt.Errorf("Failed to set gid: %s", err)
+	}
+
+	if opt.User {
+		if err := c.MapNewUid(); err != nil {
+			return fmt.Errorf("Failed to map new uid: %s", err)
+		}
+
+		if err := c.MapNewGid(); err != nil {
+			return fmt.Errorf("Failed to map new gid: %s", err)
+		}
+	}
+
+	if err := c.SetSpecChroot(); err != nil {
+		return fmt.Errorf("Failed to set chroot: %s", err)
+	}
+
+	if err := c.SetSpecChdir(); err != nil {
+		return fmt.Errorf("Failed to set chdir: %s", err)
 	}
 
 	// if err := c.SetSpecCapabilities(); err != nil {
@@ -519,6 +531,62 @@ func (c *Container) SetSpecEnv() error {
 		fmt.Printf("Set env: %s\n", envKV)
 	}
 
+	return nil
+}
+
+func (c *Container) MapNewUid() error {
+	pid := os.Getpid()
+	uid := os.Getuid()
+
+	// parse /etc/subuid
+	etcSubuid, err := os.ReadFile("/etc/subuid")
+	if err != nil {
+		return err
+	}
+
+	parts := strings.Split(string(etcSubuid), ":")
+	if len(parts) != 3 {
+		return fmt.Errorf("/etc/subuid formatted invalid")
+	}
+
+	minSubuid := parts[1]
+	newUidMap := exec.Command("newuidmap", strconv.Itoa(pid), strconv.Itoa(uid), string(minSubuid), strconv.Itoa(1))
+	newUidMap.Stdout = os.Stdout
+	newUidMap.Stderr = os.Stderr
+
+	if err := newUidMap.Run(); err != nil {
+		return err
+	}
+
+	fmt.Printf("Mapped new UID: %d to %s\n", uid, minSubuid)
+	return nil
+}
+
+func (c *Container) MapNewGid() error {
+	pid := os.Getegid()
+	gid := os.Getgid()
+
+	// parse /etc/subgid
+	etcSubgid, err := os.ReadFile("/etc/subgid")
+	if err != nil {
+		return err
+	}
+
+	parts := strings.Split(string(etcSubgid), ":")
+	if len(parts) != 3 {
+		return fmt.Errorf("/etc/subgid formatted invalid")
+	}
+
+	minSubgid := parts[1]
+	newGidMap := exec.Command("newgidmap", strconv.Itoa(pid), strconv.Itoa(gid), string(minSubgid), strconv.Itoa(1))
+	newGidMap.Stdout = os.Stdout
+	newGidMap.Stderr = os.Stderr
+
+	if err := newGidMap.Run(); err != nil {
+		return err
+	}
+
+	fmt.Printf("Mapped new GID: %d to %s\n", gid, minSubgid)
 	return nil
 }
 

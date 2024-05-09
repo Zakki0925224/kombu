@@ -16,6 +16,7 @@ const SELF_PROC_PATH string = "/proc/self/exe"
 
 type Start struct {
 	child       bool
+	user        bool
 	mountSource string
 	mountDest   string
 }
@@ -25,6 +26,7 @@ func (t *Start) Synopsis() string { return "start container" }
 func (t *Start) Usage() string    { return "start <container-id> |<commands>|: " + t.Synopsis() }
 func (t *Start) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&t.child, "child", false, "start container as child process")
+	f.BoolVar(&t.user, "user", false, "start container as rootless")
 	f.StringVar(&t.mountSource, "mount-source", "", "mount source path")
 	f.StringVar(&t.mountDest, "mount-dest", "", "mount destination path")
 }
@@ -50,6 +52,9 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 	}
 	if t.mountDest != "" {
 		newArgs = append(newArgs, "-mount-dest="+t.mountDest)
+	}
+	if t.user {
+		newArgs = append(newArgs, "-user")
 	}
 	newArgs = append(newArgs, args[0:]...)
 
@@ -123,6 +128,7 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 		Args:            args[1:],
 		UserMountSource: t.mountSource,
 		UserMountDest:   t.mountDest,
+		User:            t.user,
 	}
 
 	if err := c.Start(startOption); err != nil {
