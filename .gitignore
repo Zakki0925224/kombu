@@ -37,3 +37,6 @@ Cargo.lock
 containers
 bundles
 build
+
+# C object file
+*.o

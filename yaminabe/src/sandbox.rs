@@ -52,7 +52,7 @@ impl Sandbox {
             mount_source_path,
             mount_dest_path,
             Some(&["sh", "/mnt/setup.sh"]),
-            None,
+            self.timeout_dur,
         )?;
 
         // restart and run target program

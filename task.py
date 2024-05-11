@@ -7,6 +7,7 @@ OUTPUT_DIR = "build"
 TARGETS_PATH = "target_programs"
 DASHI = "dashi"
 YAMINABE = "yaminabe"
+NIMONO = "nimono"
 
 
 def run_cmd(cmd: str, dir: str = "./", ignore_error: bool = False):
@@ -42,19 +43,34 @@ def task_build_specimens():
         run_cmd("cargo build", dir=pwd)
 
 
+def task_build_nimono():
+    run_cmd("clang -O2 -g -c -target bpf hello.c", dir=NIMONO)
+    run_cmd(f"go build -o ../{OUTPUT_DIR}/{NIMONO}", dir=NIMONO)
+    run_cmd(f"cp hello.o ../{OUTPUT_DIR}", dir=NIMONO)
+
+
 def task_build():
     task_clear()
     task_build_specimens()
     task_build_dashi()
     task_build_yaminabe()
+    task_build_nimono()
 
 
 def task_run_hello():
     task_build()
-    run_cmd("./build/yaminabe -t ./target_programs/hello/target/debug/hello -o 10")
+    run_cmd("./build/yaminabe -t ./target_programs/hello/target/debug/hello -o 20")
 
 
-TASKS = [task_clear, task_build_dashi, task_build, task_run_hello]
+TASKS = [
+    task_clear,
+    task_build_dashi,
+    task_build_yaminabe,
+    task_build_specimens,
+    task_build_nimono,
+    task_build,
+    task_run_hello,
+]
 
 if __name__ == "__main__":
     args = sys.argv
