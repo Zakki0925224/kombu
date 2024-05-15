@@ -1,16 +1,15 @@
 package main
 
 import (
-	"C"
-
 	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/rlimit"
 )
-import "fmt"
 
 type myObjs struct {
-	MyMap       *ebpf.Map     `ebpf:"my_map"`
-	TraceExecve *ebpf.Program `ebpf:"trace_execve"`
-	Hello       *ebpf.Program `ebpf:"hello"`
+	MyMap          *ebpf.Map     `ebpf:"my_map"`
+	HookX64SysCall *ebpf.Program `ebpf:"hook_x64_sys_call"`
+	Hello          *ebpf.Program `ebpf:"hello"`
 }
 
 func (o *myObjs) Close() error {
@@ -31,19 +30,24 @@ func main() {
 		panic(err)
 	}
 
+	if err := rlimit.RemoveMemlock(); err != nil {
+		panic(err)
+	}
+
 	var o myObjs
 	if err := spec.LoadAndAssign(&o, nil); err != nil {
 		panic(err)
 	}
 	defer o.Close()
 
-	opt := ebpf.RunOptions{
-		Data: make([]byte, 64),
-	}
-	ret, err := o.TraceExecve.Run(&opt)
+	link, err := link.AttachTracing(link.TracingOptions{
+		Program: o.HookX64SysCall,
+	})
 	if err != nil {
 		panic(err)
 	}
+	defer link.Close()
 
-	fmt.Printf("ret: %d\n", ret)
+	for {
+	}
 }

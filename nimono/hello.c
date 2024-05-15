@@ -1,7 +1,14 @@
+// +build ignore
+
+#define __TARGET_ARCH_x86
+
 #include <linux/bpf.h>
+#include <linux/version.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
 char _license[] SEC("license") = "GPL";
+int _version SEC("version") = LINUX_VERSION_CODE;
 
 struct
 {
@@ -11,11 +18,13 @@ struct
     __uint(max_entries, 1);
 } my_map SEC(".maps");
 
-SEC("tp/syscalls/sys_enter_execve")
-int trace_execve()
+// linux/arch/x86/entry/syscall_64.c
+// long x64_sys_call(const struct pt_regs *regs, unsigned int nr)
+SEC("fentry/x64_sys_call")
+int BPF_PROG(hook_x64_sys_call, const struct pt_regs *regs, unsigned int nr)
 {
-    char msg[] = "execve called\n";
-    bpf_trace_printk(msg, sizeof(msg));
+    char msg[] = "x64_sys_call called, nr: %d\n";
+    bpf_trace_printk(msg, sizeof(msg), nr);
     return 0;
 }
 
