@@ -3,22 +3,31 @@ package main
 import (
 	"bytes"
 	_ "embed"
+	"encoding/binary"
+	"fmt"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 )
 
-//go:embed hook_syscall.o
+//go:embed bpf_hook_syscall.o
 var bpfBin []byte
 
-type bpfObject struct {
-	MyMap          *ebpf.Map     `ebpf:"my_map"`
+type BpfObject struct {
+	Events         *ebpf.Map     `ebpf:"events"`
 	HookX64SysCall *ebpf.Program `ebpf:"hook_x64_sys_call"`
 }
 
-func (o *bpfObject) Close() error {
-	if err := o.MyMap.Close(); err != nil {
+type SyscallEvent struct {
+	Timestamp uint64
+	SyscallNr uint32
+	Pid       uint32
+}
+
+func (o *BpfObject) Close() error {
+	if err := o.Events.Close(); err != nil {
 		return err
 	}
 
@@ -39,7 +48,7 @@ func main() {
 		panic(err)
 	}
 
-	var o bpfObject
+	var o BpfObject
 	if err := spec.LoadAndAssign(&o, nil); err != nil {
 		panic(err)
 	}
@@ -53,6 +62,27 @@ func main() {
 	}
 	defer link.Close()
 
+	rd, err := ringbuf.NewReader(o.Events)
+	if err != nil {
+		panic(err)
+	}
+
+	var event SyscallEvent
 	for {
+		record, err := rd.Read()
+		if err != nil {
+			if err == ringbuf.ErrClosed {
+				panic(err)
+			}
+			continue
+		}
+
+		// parse record
+		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.NativeEndian, &event); err != nil {
+			fmt.Printf("Failed to parse syscall event: %s\n", err)
+			continue
+		}
+
+		fmt.Printf("%#v\n", event)
 	}
 }
