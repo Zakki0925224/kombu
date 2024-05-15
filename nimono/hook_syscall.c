@@ -7,8 +7,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-char _license[] SEC("license") = "GPL";
-int _version SEC("version") = LINUX_VERSION_CODE;
+char _license[] SEC("license") = "Dual MIT/GPL";
 
 struct
 {
@@ -25,13 +24,5 @@ int BPF_PROG(hook_x64_sys_call, const struct pt_regs *regs, unsigned int nr)
 {
     char msg[] = "x64_sys_call called, nr: %d\n";
     bpf_trace_printk(msg, sizeof(msg), nr);
-    return 0;
-}
-
-SEC("socket")
-int hello()
-{
-    char msg[] = "Hello, world!\n";
-    bpf_trace_printk(msg, sizeof(msg));
     return 0;
 }

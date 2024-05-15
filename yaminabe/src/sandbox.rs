@@ -10,7 +10,6 @@ use std::{
 
 const SETUP_SH: &str = include_str!("./setup.sh");
 const NIMONO_BIN: &[u8] = include_bytes!("../../build/nimono");
-const HELLO_BIN: &[u8] = include_bytes!("../../build/hello.o");
 
 pub struct Sandbox {
     container_id: String,
@@ -93,9 +92,6 @@ impl Sandbox {
 
         let mut nimono_bin = File::create(self.mount_dir_path().join("nimono"))?;
         nimono_bin.write_all(NIMONO_BIN)?;
-
-        let mut hello_bin = File::create(self.mount_dir_path().join("hello.o"))?;
-        hello_bin.write_all(HELLO_BIN)?;
 
         // copy target to mount directory
         fs::copy(target_program_path, self.mount_dir_path().join("target"))?;

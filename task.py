@@ -44,9 +44,8 @@ def task_build_specimens():
 
 
 def task_build_nimono():
-    run_cmd("clang -O2 -g -c -target bpf hello.c", dir=NIMONO)
+    run_cmd("clang -O2 -g -c -target bpf hook_syscall.c", dir=NIMONO)
     run_cmd(f"go build -o ../{OUTPUT_DIR}/{NIMONO}", dir=NIMONO)
-    run_cmd(f"cp hello.o ../{OUTPUT_DIR}", dir=NIMONO)
 
 
 def task_build():
