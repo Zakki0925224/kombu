@@ -9,6 +9,8 @@ use std::{
 };
 
 const SETUP_SH: &str = include_str!("./setup.sh");
+const NIMONO_BIN: &[u8] = include_bytes!("../../build/nimono");
+const HELLO_BIN: &[u8] = include_bytes!("../../build/hello.o");
 
 pub struct Sandbox {
     container_id: String,
@@ -18,8 +20,8 @@ pub struct Sandbox {
 
 impl Drop for Sandbox {
     fn drop(&mut self) {
-        let _ = wrapper::delete_container(&self.container_id);
-        let _ = self.remove_mount_dir();
+        // let _ = wrapper::delete_container(&self.container_id);
+        // let _ = self.remove_mount_dir();
     }
 }
 
@@ -88,6 +90,12 @@ impl Sandbox {
         fs::create_dir(self.mount_dir_path())?;
         let mut setup_sh = File::create(self.mount_dir_path().join("setup.sh"))?;
         setup_sh.write_all(SETUP_SH.as_bytes())?;
+
+        let mut nimono_bin = File::create(self.mount_dir_path().join("nimono"))?;
+        nimono_bin.write_all(NIMONO_BIN)?;
+
+        let mut hello_bin = File::create(self.mount_dir_path().join("hello.o"))?;
+        hello_bin.write_all(HELLO_BIN)?;
 
         // copy target to mount directory
         fs::copy(target_program_path, self.mount_dir_path().join("target"))?;

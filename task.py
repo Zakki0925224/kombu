@@ -53,8 +53,8 @@ def task_build():
     task_clear()
     task_build_specimens()
     task_build_dashi()
-    task_build_yaminabe()
     task_build_nimono()
+    task_build_yaminabe()
 
 
 def task_run_hello():

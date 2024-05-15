@@ -8,8 +8,9 @@ import (
 import "fmt"
 
 type myObjs struct {
-	MyMap *ebpf.Map     `ebpf:"my_map"`
-	Hello *ebpf.Program `ebpf:"hello"`
+	MyMap       *ebpf.Map     `ebpf:"my_map"`
+	TraceExecve *ebpf.Program `ebpf:"trace_execve"`
+	Hello       *ebpf.Program `ebpf:"hello"`
 }
 
 func (o *myObjs) Close() error {
@@ -39,7 +40,7 @@ func main() {
 	opt := ebpf.RunOptions{
 		Data: make([]byte, 64),
 	}
-	ret, err := o.Hello.Run(&opt)
+	ret, err := o.TraceExecve.Run(&opt)
 	if err != nil {
 		panic(err)
 	}

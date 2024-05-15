@@ -11,6 +11,14 @@ struct
     __uint(max_entries, 1);
 } my_map SEC(".maps");
 
+SEC("tp/syscalls/sys_enter_execve")
+int trace_execve()
+{
+    char msg[] = "execve called\n";
+    bpf_trace_printk(msg, sizeof(msg));
+    return 0;
+}
+
 SEC("socket")
 int hello()
 {
