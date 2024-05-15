@@ -4,7 +4,11 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -67,8 +71,22 @@ func main() {
 		panic(err)
 	}
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
 	var event SyscallEvent
+	var events []SyscallEvent
+
+l:
 	for {
+		select {
+		case <-sigCh:
+			// received signal
+			break l
+		default:
+		}
+
+		// read record
 		record, err := rd.Read()
 		if err != nil {
 			if err == ringbuf.ErrClosed {
@@ -83,6 +101,21 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("%#v\n", event)
+		events = append(events, event)
 	}
+
+	// export json log
+	file, err := os.Create("syscall_events.json")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+
+	if err := encoder.Encode(events); err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Exported syscall events log\n")
 }
