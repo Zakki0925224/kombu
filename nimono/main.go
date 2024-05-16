@@ -5,7 +5,7 @@ import (
 	_ "embed"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -25,9 +25,9 @@ type BpfObject struct {
 }
 
 type SyscallEvent struct {
-	Timestamp uint64
-	SyscallNr uint32
-	Pid       uint32
+	Timestamp uint64 `json:"timestamp"`
+	SyscallNr uint32 `json:"nr"`
+	Pid       uint32 `json:"pid"`
 }
 
 func (o *BpfObject) Close() error {
@@ -43,32 +43,41 @@ func (o *BpfObject) Close() error {
 }
 
 func main() {
+
 	spec, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(bpfBin))
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to load BPF binary: %s\n", err)
+		os.Exit(1)
 	}
+	log.Printf("Loaded BPF binary\n")
 
 	if err := rlimit.RemoveMemlock(); err != nil {
-		panic(err)
+		log.Fatalf("Failed to remove memlock: %s\n", err)
+		os.Exit(1)
 	}
 
 	var o BpfObject
 	if err := spec.LoadAndAssign(&o, nil); err != nil {
-		panic(err)
+		log.Fatalf("Failed to load BPF object: %s\n", err)
+		os.Exit(1)
 	}
+	log.Printf("Loaded BPF object\n")
 	defer o.Close()
 
 	link, err := link.AttachTracing(link.TracingOptions{
 		Program: o.HookX64SysCall,
 	})
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to attach hook function: %s\n", err)
+		os.Exit(1)
 	}
+	log.Printf("Attached hook function\n")
 	defer link.Close()
 
 	rd, err := ringbuf.NewReader(o.Events)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to create ringbuf reader: %s\n", err)
+		os.Exit(1)
 	}
 
 	sigCh := make(chan os.Signal, 1)
@@ -90,14 +99,15 @@ l:
 		record, err := rd.Read()
 		if err != nil {
 			if err == ringbuf.ErrClosed {
-				panic(err)
+				log.Fatalf("ringbuf closed\n")
+				os.Exit(1)
 			}
 			continue
 		}
 
 		// parse record
 		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.NativeEndian, &event); err != nil {
-			fmt.Printf("Failed to parse syscall event: %s\n", err)
+			log.Fatalf("Failed to parse syscall event: %s\n", err)
 			continue
 		}
 
@@ -107,15 +117,17 @@ l:
 	// export json log
 	file, err := os.Create("syscall_events.json")
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to create file: %s\n", err)
+		os.Exit(1)
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 
 	if err := encoder.Encode(events); err != nil {
-		panic(err)
+		log.Fatalf("Failed to encode: %s\n", err)
+		os.Exit(1)
 	}
 
-	fmt.Printf("Exported syscall events log\n")
+	log.Printf("Successed to export log\n")
 }

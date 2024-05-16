@@ -19,8 +19,8 @@ pub struct Sandbox {
 
 impl Drop for Sandbox {
     fn drop(&mut self) {
-        // let _ = wrapper::delete_container(&self.container_id);
-        // let _ = self.remove_mount_dir();
+        let _ = wrapper::delete_container(&self.container_id);
+        //let _ = self.remove_mount_dir();
     }
 }
 
