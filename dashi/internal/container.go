@@ -211,6 +211,8 @@ func (c *Container) Kill() error {
 }
 
 func (c *Container) Start(opt *StartOption) error {
+	defer c.Unmount()
+
 	if err := c.SetSpecHostname(); err != nil {
 		return fmt.Errorf("Failed to set hostname: %s", err)
 	}
@@ -220,44 +222,36 @@ func (c *Container) Start(opt *StartOption) error {
 	// }
 
 	if err := c.SetSpecMounts(opt.UserMountSource, opt.UserMountDest); err != nil {
-		c.Unmount()
 		return fmt.Errorf("Failed to set mounts: %s", err)
 	}
 
 	if err := c.SetSpecUid(); err != nil {
-		c.Unmount()
 		return fmt.Errorf("Failed to set uid: %s", err)
 	}
 
 	if err := c.SetSpecGid(); err != nil {
-		c.Unmount()
 		return fmt.Errorf("Failed to set gid: %s", err)
 	}
 
 	if opt.User {
 		if err := c.MapNewUid(); err != nil {
-			c.Unmount()
 			return fmt.Errorf("Failed to map new uid: %s", err)
 		}
 
 		if err := c.MapNewGid(); err != nil {
-			c.Unmount()
 			return fmt.Errorf("Failed to map new gid: %s", err)
 		}
 	}
 
 	if err := c.SetSpecChroot(); err != nil {
-		c.Unmount()
 		return fmt.Errorf("Failed to set chroot: %s", err)
 	}
 
 	if err := c.SetSpecChdir(); err != nil {
-		c.Unmount()
 		return fmt.Errorf("Failed to set chdir: %s", err)
 	}
 
 	if err := c.SetSpecEnv(); err != nil {
-		c.Unmount()
 		return fmt.Errorf("Failed to set env: %s", err)
 	}
 
@@ -275,11 +269,8 @@ func (c *Container) Start(opt *StartOption) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		c.Unmount()
 		fmt.Printf("Failed to run command: %s\n", err)
 	}
-
-	c.Unmount()
 
 	return nil
 }

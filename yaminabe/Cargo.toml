@@ -12,4 +12,3 @@ env_logger = "0.11.3"
 log = "0.4.21"
 sudo = "0.6.0"
 uuid = { version = "1.8.0", features = ["v4"] }
-wait-timeout = "0.2.0"

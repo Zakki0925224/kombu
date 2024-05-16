@@ -13,8 +13,6 @@ mod wrapper;
 struct Args {
     #[arg(short, long)]
     target_program_path: String,
-    #[arg(short('o'), long)]
-    timeout_sec: Option<u64>,
 }
 
 fn main() -> Result<()> {
@@ -22,11 +20,7 @@ fn main() -> Result<()> {
     env_logger::init();
 
     let args = Args::parse();
-    let sandbox = Sandbox::new(
-        Uuid::new_v4().to_string(),
-        args.target_program_path,
-        args.timeout_sec,
-    );
+    let sandbox = Sandbox::new(Uuid::new_v4().to_string(), args.target_program_path);
     sandbox.run()?;
 
     Ok(())

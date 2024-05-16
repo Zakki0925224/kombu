@@ -1,10 +1,9 @@
 use anyhow::Result;
-use log::info;
+use log::{error, info};
 use std::{
     process::{Command, Output},
     time::Duration,
 };
-use wait_timeout::ChildExt;
 
 const RUNTIME_NAME: &str = "./build/dashi";
 
@@ -53,7 +52,6 @@ pub fn start_container(
     mount_source_path: &str,
     mount_dest_path: &str,
     command: Option<&[&str]>,
-    timeout_dur: Option<Duration>,
 ) -> Result<()> {
     let mut cmd = runtime_cmd(
         &[
@@ -69,27 +67,13 @@ pub fn start_container(
         cmd.args(command);
     }
 
-    if let Some(timeout_dur) = timeout_dur {
-        let mut child = cmd.spawn()?;
-        let status = match child.wait_timeout(timeout_dur).unwrap() {
-            Some(s) => s,
-            None => {
-                child.kill()?;
-                child.wait()?;
-                info!("Timed out");
-                return Ok(());
-            }
-        };
+    let mut child = cmd.spawn()?;
+    let status = child.wait()?;
 
-        if !status.success() {
-            return Err(anyhow::anyhow!("Failed to execute command"));
-        }
-
-        return Ok(());
+    if !status.success() {
+        error!("Container exit status: {:?}", status.code());
     }
 
-    let output = cmd.output()?;
-    output_to_result(output)?;
     Ok(())
 }
 

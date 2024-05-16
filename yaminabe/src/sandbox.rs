@@ -3,9 +3,8 @@ use anyhow::Result;
 use log::info;
 use std::{
     fs::{self, File},
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 const RUNNER_SH: &str = include_str!("./runner.sh");
@@ -14,7 +13,6 @@ const NIMONO_BIN: &[u8] = include_bytes!("../../build/nimono");
 pub struct Sandbox {
     container_id: String,
     target_program_path: String,
-    timeout_dur: Option<Duration>,
 }
 
 impl Drop for Sandbox {
@@ -25,15 +23,10 @@ impl Drop for Sandbox {
 }
 
 impl Sandbox {
-    pub fn new(
-        container_id: String,
-        target_program_path: String,
-        timeout_sec: Option<u64>,
-    ) -> Self {
+    pub fn new(container_id: String, target_program_path: String) -> Self {
         Self {
             container_id,
             target_program_path,
-            timeout_dur: timeout_sec.map(Duration::from_secs),
         }
     }
 
@@ -52,11 +45,12 @@ impl Sandbox {
             mount_source_path,
             mount_dest_path,
             Some(&["sh", "/mnt/runner.sh"]),
-            self.timeout_dur,
         )?;
 
-        let log_file = fs::File::open(self.mount_dir_path().join("syscall_events.json"))?;
+        let mut log_file = fs::File::open(self.mount_dir_path().join("syscall_events.json"))?;
         info!("{:?}", log_file);
+        let mut buf = String::new();
+        log_file.read_to_string(&mut buf)?;
         // remove container when dropped this sandbox instance
 
         Ok(())
