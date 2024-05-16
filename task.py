@@ -58,7 +58,7 @@ def task_build():
 
 def task_run_hello():
     task_build()
-    run_cmd("./build/yaminabe -t ./target_programs/hello/target/debug/hello -o 20")
+    run_cmd("./build/yaminabe -t ./target_programs/hello/target/debug/hello -o 10")
 
 
 TASKS = [

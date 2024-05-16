@@ -71,9 +71,9 @@ pub fn start_container(
 
     if let Some(timeout_dur) = timeout_dur {
         let mut child = cmd.spawn()?;
-        let status = match child.wait_timeout(timeout_dur) {
-            Ok(s) => s.unwrap(),
-            Err(_) => {
+        let status = match child.wait_timeout(timeout_dur).unwrap() {
+            Some(s) => s,
+            None => {
                 child.kill()?;
                 child.wait()?;
                 info!("Timed out");

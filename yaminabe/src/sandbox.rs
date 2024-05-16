@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-const SETUP_SH: &str = include_str!("./setup.sh");
+const RUNNER_SH: &str = include_str!("./runner.sh");
 const NIMONO_BIN: &[u8] = include_bytes!("../../build/nimono");
 
 pub struct Sandbox {
@@ -20,7 +20,7 @@ pub struct Sandbox {
 impl Drop for Sandbox {
     fn drop(&mut self) {
         let _ = wrapper::delete_container(&self.container_id);
-        //let _ = self.remove_mount_dir();
+        let _ = self.remove_mount_dir();
     }
 }
 
@@ -46,26 +46,17 @@ impl Sandbox {
         let mount_source_path = mount_dir_path.to_str().unwrap();
         let mount_dest_path = "/mnt";
 
-        // setup container
-        info!("Execute setup script...");
+        info!("Execute runner script...");
         wrapper::start_container(
             &self.container_id,
             mount_source_path,
             mount_dest_path,
-            Some(&["sh", "/mnt/setup.sh"]),
+            Some(&["sh", "/mnt/runner.sh"]),
             self.timeout_dur,
         )?;
 
-        // restart and run target program
-        info!("Execute target program...");
-        wrapper::start_container(
-            &self.container_id,
-            mount_source_path,
-            mount_dest_path,
-            Some(&["/mnt/target"]),
-            self.timeout_dur,
-        )?;
-
+        let log_file = fs::File::open(self.mount_dir_path().join("syscall_events.json"))?;
+        info!("{:?}", log_file);
         // remove container when dropped this sandbox instance
 
         Ok(())
@@ -87,8 +78,8 @@ impl Sandbox {
         }
 
         fs::create_dir(self.mount_dir_path())?;
-        let mut setup_sh = File::create(self.mount_dir_path().join("setup.sh"))?;
-        setup_sh.write_all(SETUP_SH.as_bytes())?;
+        let mut setup_sh = File::create(self.mount_dir_path().join("runner.sh"))?;
+        setup_sh.write_all(RUNNER_SH.as_bytes())?;
 
         let mut nimono_bin = File::create(self.mount_dir_path().join("nimono"))?;
         nimono_bin.write_all(NIMONO_BIN)?;
