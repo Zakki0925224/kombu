@@ -1,9 +1,6 @@
 use anyhow::Result;
 use log::{error, info};
-use std::{
-    process::{Command, Output},
-    time::Duration,
-};
+use std::process::{Command, Output};
 
 const RUNTIME_NAME: &str = "./build/dashi";
 
@@ -33,15 +30,15 @@ fn output_to_result(output: Output) -> Result<()> {
     ))
 }
 
-pub fn download_oci_container_bundle(docker_image_name: &str, tag: &str) -> Result<()> {
-    let mut cmd = runtime_cmd(&["download", docker_image_name, tag], true);
-    let output = cmd.output()?;
-    output_to_result(output)?;
-    Ok(())
-}
+// pub fn download_oci_container_bundle(docker_image_name: &str, tag: &str) -> Result<()> {
+//     let mut cmd = runtime_cmd(&["download", docker_image_name, tag], true);
+//     let output = cmd.output()?;
+//     output_to_result(output)?;
+//     Ok(())
+// }
 
 pub fn create_container(container_id: &str, oci_runtime_bundle_path: &str) -> Result<()> {
-    let mut cmd = runtime_cmd(&["create", container_id, oci_runtime_bundle_path], true);
+    let mut cmd = runtime_cmd(&["create", container_id, oci_runtime_bundle_path], false);
     let output = cmd.output()?;
     output_to_result(output)?;
     Ok(())
@@ -56,11 +53,12 @@ pub fn start_container(
     let mut cmd = runtime_cmd(
         &[
             "start",
+            "--user",
             &format!("-mount-source={}", mount_source_path),
             &format!("-mount-dest={}", mount_dest_path),
             container_id,
         ],
-        true,
+        false,
     );
     if let Some(command) = command {
         info!("Running command in the container: {:?}", command);
@@ -78,7 +76,7 @@ pub fn start_container(
 }
 
 pub fn delete_container(container_id: &str) -> Result<()> {
-    let mut cmd = runtime_cmd(&["delete", container_id], true);
+    let mut cmd = runtime_cmd(&["delete", container_id], false);
     let output = cmd.output()?;
     output_to_result(output)?;
     Ok(())

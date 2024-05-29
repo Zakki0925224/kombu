@@ -32,7 +32,7 @@ impl Sandbox {
 
     pub fn run(&self) -> Result<()> {
         self.create_mount_dir()?;
-        wrapper::download_oci_container_bundle("ubuntu", "latest")?;
+        //wrapper::download_oci_container_bundle("ubuntu", "latest")?;
         wrapper::create_container(&self.container_id, "./bundles/ubuntu-latest")?;
 
         let mount_dir_path = self.mount_dir_path();

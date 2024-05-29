@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -215,6 +216,7 @@ func (c *Container) Start(opt *StartOption) error {
 	defer c.Unmount()
 
 	if opt.User {
+		log.Info("Start container as rootless")
 		c.ConvertSpecToRootless()
 	}
 
@@ -278,7 +280,7 @@ func (c *Container) Start(opt *StartOption) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("Failed to run command: %s", err)
+		log.Warn("Exit status was not 0", "err", err)
 	}
 
 	return nil
@@ -491,14 +493,15 @@ func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) 
 			if f, ok := mFlags[o]; ok {
 				flags |= f
 			}
-			// else {
-			// 	fmt.Printf("Undefined mount option: %s\n", o)
-			// 	return subcommands.ExitFailure
-			// }
+		}
+
+		if err := os.MkdirAll(dest, os.ModePerm); err != nil {
+			log.Warn("Failed to create directory", "dest", dest, "err", err)
+			//return subcommands.ExitFailure
 		}
 
 		if err := unix.Mount(source, dest, mType, flags, ""); err != nil {
-			log.Error("Failed to mount", "source", source, "err", err)
+			log.Warn("Failed to mount", "source", source, "err", err)
 			//return subcommands.ExitFailure
 		} else {
 			log.Debug("Mounted", "source", source, "dest", dest)
@@ -688,9 +691,14 @@ func (c *Container) MapNewGid() error {
 }
 
 func (c *Container) Unmount() {
+	// sort nested paths
+	sort.Slice(c.MountList, func(i, j int) bool {
+		return len(strings.Split(c.MountList[i], "/")) > len(strings.Split(c.MountList[j], "/"))
+	})
+
 	for _, dest := range c.MountList {
 		if err := unix.Unmount(dest, 0); err != nil {
-			log.Error("Failed to unmount", "dest", dest, "err", err)
+			log.Warn("Failed to unmount", "dest", dest, "err", err)
 		} else {
 			log.Debug("Unmounted", "dest", dest)
 		}
