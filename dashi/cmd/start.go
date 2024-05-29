@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"syscall"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
 	"github.com/google/subcommands"
@@ -81,9 +80,10 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 		return subcommands.ExitFailure
 	}
 
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: c.SpecNamespaceFlags(),
+	if t.user {
+		c.ConvertSpecToRootless()
 	}
+	cmd.SysProcAttr = c.SpecSysProcAttr()
 
 	if err := c.SetStateRunning(); err != nil {
 		fmt.Printf("Failed to set container state: %s\n", err)

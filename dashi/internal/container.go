@@ -213,8 +213,8 @@ func (c *Container) Kill() error {
 func (c *Container) Start(opt *StartOption) error {
 	defer c.Unmount()
 
-	if err := c.SetSpecHostname(); err != nil {
-		return fmt.Errorf("Failed to set hostname: %s", err)
+	if opt.User {
+		c.ConvertSpecToRootless()
 	}
 
 	// if err := c.SetSpecCapabilities(); err != nil {
@@ -233,15 +233,19 @@ func (c *Container) Start(opt *StartOption) error {
 		return fmt.Errorf("Failed to set gid: %s", err)
 	}
 
-	if opt.User {
-		if err := c.MapNewUid(); err != nil {
-			return fmt.Errorf("Failed to map new uid: %s", err)
-		}
+	// for _, ns := range c.Spec.Linux.Namespaces {
+	// 	if ns.Type == specs_go.UserNamespace {
+	// 		if err := c.MapNewUid(); err != nil {
+	// 			return fmt.Errorf("Failed to map new uid: %s", err)
+	// 		}
 
-		if err := c.MapNewGid(); err != nil {
-			return fmt.Errorf("Failed to map new gid: %s", err)
-		}
-	}
+	// 		if err := c.MapNewGid(); err != nil {
+	// 			return fmt.Errorf("Failed to map new gid: %s", err)
+	// 		}
+
+	// 		break
+	// 	}
+	// }
 
 	if err := c.SetSpecChroot(); err != nil {
 		return fmt.Errorf("Failed to set chroot: %s", err)
@@ -253,6 +257,10 @@ func (c *Container) Start(opt *StartOption) error {
 
 	if err := c.SetSpecEnv(); err != nil {
 		return fmt.Errorf("Failed to set env: %s", err)
+	}
+
+	if err := c.SetSpecHostname(); err != nil {
+		return fmt.Errorf("Failed to set hostname: %s", err)
 	}
 
 	runArgs := c.Spec.Process.Args
@@ -280,8 +288,70 @@ func (c *Container) IsRunningContainer() bool {
 	return state.Status == specs_go.StateRunning && state.Pid != 1
 }
 
-func (c *Container) SpecNamespaceFlags() uintptr {
-	flags := uintptr(0)
+// reference: https://github.com/opencontainers/runc/blob/main/libcontainer/specconv/example.go
+func (c *Container) ConvertSpecToRootless() {
+	var namespaces []specs_go.LinuxNamespace
+
+	// remove networkns
+	for _, ns := range c.Spec.Linux.Namespaces {
+		switch ns.Type {
+		case specs_go.NetworkNamespace, specs_go.UserNamespace:
+			// do nothing
+		default:
+			namespaces = append(namespaces, ns)
+		}
+	}
+
+	// add userns
+	namespaces = append(namespaces, specs_go.LinuxNamespace{
+		Type: specs_go.UserNamespace,
+	})
+	c.Spec.Linux.Namespaces = namespaces
+
+	// add uid/gid mappings
+	c.Spec.Linux.UIDMappings = []specs_go.LinuxIDMapping{{
+		HostID:      uint32(os.Geteuid()),
+		ContainerID: 0,
+		Size:        1,
+	}}
+	c.Spec.Linux.GIDMappings = []specs_go.LinuxIDMapping{{
+		HostID:      uint32(os.Getegid()),
+		ContainerID: 0,
+		Size:        1,
+	}}
+
+	// fix mounts
+	var mounts []specs_go.Mount
+	for _, mount := range c.Spec.Mounts {
+		if filepath.Clean(mount.Destination) == "/sys" {
+			mounts = append(mounts, specs_go.Mount{
+				Source:      "/sys",
+				Destination: "/sys",
+				Type:        "none",
+				Options:     []string{"rbind", "nosuid", "noexec", "nodev", "ro"},
+			})
+			continue
+		}
+
+		// remove all gid/uid mappings
+		var options []string
+		for _, option := range mount.Options {
+			if !strings.HasPrefix(option, "gid=") && !strings.HasPrefix(option, "uid=") {
+				options = append(options, option)
+			}
+		}
+
+		mount.Options = options
+		mounts = append(mounts, mount)
+	}
+	c.Spec.Mounts = mounts
+
+	// remove cgroup settings
+	c.Spec.Linux.Resources = nil
+}
+
+func (c *Container) SpecSysProcAttr() *syscall.SysProcAttr {
+	flags := uintptr(syscall.CLONE_NEWNS)
 	for _, ns := range c.Spec.Linux.Namespaces {
 		switch ns.Type {
 		case specs_go.PIDNamespace:
@@ -294,10 +364,35 @@ func (c *Container) SpecNamespaceFlags() uintptr {
 			flags |= syscall.CLONE_NEWUTS
 		case specs_go.MountNamespace:
 			flags |= syscall.CLONE_NEWNS
+		case specs_go.UserNamespace:
+			flags |= syscall.CLONE_NEWUSER
 		}
 	}
 
-	return flags
+	var uidMappings []syscall.SysProcIDMap
+	var gidMappings []syscall.SysProcIDMap
+
+	for _, mapping := range c.Spec.Linux.UIDMappings {
+		uidMappings = append(uidMappings, syscall.SysProcIDMap{
+			ContainerID: int(mapping.ContainerID),
+			HostID:      int(mapping.HostID),
+			Size:        int(mapping.Size),
+		})
+	}
+
+	for _, mapping := range c.Spec.Linux.GIDMappings {
+		gidMappings = append(gidMappings, syscall.SysProcIDMap{
+			ContainerID: int(mapping.ContainerID),
+			HostID:      int(mapping.HostID),
+			Size:        int(mapping.Size),
+		})
+	}
+
+	return &syscall.SysProcAttr{
+		Cloneflags:  flags,
+		UidMappings: uidMappings,
+		GidMappings: gidMappings,
+	}
 }
 
 func (c *Container) SetSpecChroot() error {
