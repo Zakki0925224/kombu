@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
+	"github.com/charmbracelet/log"
 	"github.com/google/subcommands"
 )
 
@@ -18,7 +19,7 @@ func (t *List) SetFlags(f *flag.FlagSet) {}
 func (t *List) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	r, err := internal.NewRuntime()
 	if err != nil {
-		fmt.Printf("Error occured: %s\n", err)
+		log.Error("Error occured", "err", err)
 		return subcommands.ExitFailure
 	}
 

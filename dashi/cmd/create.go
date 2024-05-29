@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
+	"github.com/charmbracelet/log"
 	"github.com/google/subcommands"
 )
 
@@ -27,16 +28,16 @@ func (t *Create) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 
 	r, err := internal.NewRuntime()
 	if err != nil {
-		fmt.Printf("Error occured: %s\n", err)
+		log.Error("Error occured", "err", err)
 		return subcommands.ExitFailure
 	}
 
 	cId, err := r.CreateContainer(args[0], args[1])
 	if err != nil {
-		fmt.Printf("Error occured: %s\n", err)
+		log.Error("Error occured", "err", err)
 		return subcommands.ExitFailure
 	}
 
-	fmt.Printf("Created new container: %s\n", cId)
+	log.Info("Created new container", "cId", cId)
 	return subcommands.ExitSuccess
 }

@@ -6,10 +6,13 @@ import (
 	"os"
 
 	"github.com/Zakki0925224/kombu/dashi/cmd"
+	"github.com/charmbracelet/log"
 	"github.com/google/subcommands"
 )
 
 func main() {
+	log.SetLevel(log.DebugLevel)
+
 	subcommands.Register(subcommands.CommandsCommand(), "")
 	subcommands.Register(new(cmd.Start), "")
 	subcommands.Register(new(cmd.Create), "")

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/charmbracelet/log"
 	specs_go "github.com/opencontainers/runtime-spec/specs-go"
 	cp "github.com/otiai10/copy"
 	"golang.org/x/sys/unix"
@@ -269,7 +270,7 @@ func (c *Container) Start(opt *StartOption) error {
 		runArgs = opt.Args
 	}
 
-	fmt.Printf("Start container..., args: %v\n", runArgs)
+	log.Debug("Start container...", "args", runArgs)
 
 	cmd := exec.Command(runArgs[0], runArgs[1:]...)
 	cmd.Stdin = os.Stdin
@@ -277,7 +278,7 @@ func (c *Container) Start(opt *StartOption) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("Failed to run command: %s\n", err)
+		return fmt.Errorf("Failed to run command: %s", err)
 	}
 
 	return nil
@@ -401,7 +402,7 @@ func (c *Container) SetSpecChroot() error {
 		return err
 	}
 
-	fmt.Printf("Set root: %s\n", rootFsPath)
+	log.Debug("Set root", "path", rootFsPath)
 	return nil
 }
 
@@ -411,7 +412,7 @@ func (c *Container) SetSpecChdir() error {
 		return err
 	}
 
-	fmt.Printf("Set cwd: %s\n", cwd)
+	log.Debug("Set cwd", "cwd", cwd)
 	return nil
 }
 
@@ -421,7 +422,7 @@ func (c *Container) SetSpecHostname() error {
 		return err
 	}
 
-	fmt.Printf("Set hostname: %s\n", hostname)
+	log.Debug("Set hostname", "hostname", hostname)
 	return nil
 }
 
@@ -497,10 +498,10 @@ func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) 
 		}
 
 		if err := unix.Mount(source, dest, mType, flags, ""); err != nil {
-			fmt.Printf("Failed to mount %s: %s\n", source, err)
+			log.Error("Failed to mount", "source", source, "err", err)
 			//return subcommands.ExitFailure
 		} else {
-			fmt.Printf("Mount %s to %s\n", source, dest)
+			log.Debug("Mounted", "source", source, "dest", dest)
 			c.MountList = append(c.MountList, m.Destination)
 		}
 	}
@@ -591,7 +592,7 @@ func (c *Container) SetSpecCapabilities() error {
 		return err
 	}
 
-	fmt.Printf("Set capabilities: %#v\n", capData)
+	log.Debug("Set capabilities", "caps", capData)
 	return nil
 }
 
@@ -601,7 +602,7 @@ func (c *Container) SetSpecUid() error {
 		return err
 	}
 
-	fmt.Printf("Set UID: %d\n", uid)
+	log.Debug("Set UID", "uid", uid)
 	return nil
 }
 
@@ -611,7 +612,7 @@ func (c *Container) SetSpecGid() error {
 		return err
 	}
 
-	fmt.Printf("Set GID: %d\n", gid)
+	log.Debug("Set GID", "gid", gid)
 	return nil
 }
 
@@ -624,7 +625,7 @@ func (c *Container) SetSpecEnv() error {
 			return err
 		}
 
-		fmt.Printf("Set env: %s\n", envKV)
+		log.Debug("Set env", "env", envKV)
 	}
 
 	return nil
@@ -654,7 +655,7 @@ func (c *Container) MapNewUid() error {
 		return err
 	}
 
-	fmt.Printf("Mapped new UID: %d to %s\n", uid, minSubuid)
+	log.Debug("Mapped new UID", "uid", uid, "minSubuid", minSubuid)
 	return nil
 }
 
@@ -682,16 +683,16 @@ func (c *Container) MapNewGid() error {
 		return err
 	}
 
-	fmt.Printf("Mapped new GID: %d to %s\n", gid, minSubgid)
+	log.Debug("Mapped new GID", "gid", gid, "minSubgid", minSubgid)
 	return nil
 }
 
 func (c *Container) Unmount() {
 	for _, dest := range c.MountList {
 		if err := unix.Unmount(dest, 0); err != nil {
-			fmt.Printf("Failed to unmount %s: %s\n", dest, err)
+			log.Error("Failed to unmount", "dest", dest, "err", err)
 		} else {
-			fmt.Printf("Unmount %s\n", dest)
+			log.Debug("Unmounted", "dest", dest)
 		}
 	}
 

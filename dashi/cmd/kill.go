@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
+	"github.com/charmbracelet/log"
 	"github.com/google/subcommands"
 )
 
@@ -25,15 +26,15 @@ func (t *Kill) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) sub
 
 	r, err := internal.NewRuntime()
 	if err != nil {
-		fmt.Printf("Error occured: %s\n", err)
+		log.Error("Error occured", "err", err)
 		return subcommands.ExitFailure
 	}
 
 	if err := r.KillRunningContainer(args[0]); err != nil {
-		fmt.Printf("Error occured: %s\n", err)
+		log.Error("Error occured", "err", err)
 		return subcommands.ExitFailure
 	}
 
-	fmt.Printf("Successed to kill container process\n")
+	log.Info("Killed container process successfully")
 	return subcommands.ExitSuccess
 }

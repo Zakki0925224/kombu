@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
+	"github.com/charmbracelet/log"
 	"github.com/google/subcommands"
 )
 
@@ -65,18 +66,18 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 
 	r, err := internal.NewRuntime()
 	if err != nil {
-		fmt.Printf("Error occured: %s\n", err)
+		log.Error("Error occured", "err", err)
 		return subcommands.ExitFailure
 	}
 
 	c := r.FindContainer(args[0])
 	if c == nil {
-		fmt.Printf("Container was not found: %s\n", args[0])
+		log.Error("Container was not found", "cId", args[0])
 		return subcommands.ExitFailure
 	}
 
 	if c.IsRunningContainer() {
-		fmt.Printf("Container is running: %s\n", args[0])
+		log.Error("Container is running", "cId", args[0])
 		return subcommands.ExitFailure
 	}
 
@@ -86,20 +87,20 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 	cmd.SysProcAttr = c.SpecSysProcAttr()
 
 	if err := c.SetStateRunning(); err != nil {
-		fmt.Printf("Failed to set container state: %s\n", err)
+		log.Error("Failed to set container state", "err", err)
 		return subcommands.ExitFailure
 	}
 
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("Failed to start container: %s\n", err)
+		log.Error("Failed to start container", "err", err)
 	}
 
 	if err := c.SetStateStopped(); err != nil {
-		fmt.Printf("Failed to set container state: %s\n", err)
+		log.Error("Failed to set container state", "err", err)
 		return subcommands.ExitFailure
 	}
 
-	fmt.Printf("Exited container\n")
+	log.Info("Exited container")
 	return subcommands.ExitSuccess
 }
 
@@ -108,19 +109,19 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 
 	r, err := internal.NewRuntime()
 	if err != nil {
-		fmt.Printf("Error occured: %s\n", err)
+		log.Error("Error occured", "err", err)
 		return subcommands.ExitFailure
 	}
 
 	c := r.FindContainer(cId)
 	if c == nil {
-		fmt.Printf("Container was not found: %s\n", cId)
+		log.Error("Container was not found", "cId", cId)
 		return subcommands.ExitFailure
 	}
 
 	if (t.mountSource != "" && t.mountDest == "") ||
 		(t.mountSource == "" && t.mountDest != "") {
-		fmt.Printf("Invalid flags\n")
+		log.Error("Invalid flags", "mount-source", t.mountSource, "mount-dest", t.mountDest)
 		return subcommands.ExitFailure
 	}
 
@@ -132,7 +133,7 @@ func (t *Start) execChild(args []string) subcommands.ExitStatus {
 	}
 
 	if err := c.Start(startOption); err != nil {
-		fmt.Printf("Failed to start container: %s\n", err)
+		log.Error("Failed to start container", "err", err)
 		return subcommands.ExitFailure
 	}
 

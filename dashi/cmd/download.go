@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
+	"github.com/charmbracelet/log"
 	"github.com/google/subcommands"
 )
 
@@ -46,7 +47,7 @@ func (t *Download) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{})
 	skopeo.Stderr = os.Stderr
 
 	if err := skopeo.Run(); err != nil {
-		fmt.Printf("Failed to execute command: %v: %s\n", skopeo, err)
+		log.Error("Failed to execute command", "cmd", skopeo, "err", err)
 		os.RemoveAll(tmpImagePath)
 		return subcommands.ExitFailure
 	}
@@ -58,7 +59,7 @@ func (t *Download) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{})
 	umoci.Stderr = os.Stderr
 
 	if err := umoci.Run(); err != nil {
-		fmt.Printf("Failed to execute command: %v: %s\n", umoci, err)
+		log.Error("Failed to execute command", "cmd", umoci, "err", err)
 		os.RemoveAll(bundleImagePath)
 		os.RemoveAll(tmpImagePath)
 		return subcommands.ExitFailure
@@ -66,5 +67,6 @@ func (t *Download) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{})
 
 	os.RemoveAll(tmpImagePath)
 
+	log.Info("Downloaded OCI runtime bundle successfully")
 	return subcommands.ExitSuccess
 }
