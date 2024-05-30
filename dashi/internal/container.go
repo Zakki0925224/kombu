@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -252,6 +251,10 @@ func (c *Container) Start(opt *StartOption) error {
 		return fmt.Errorf("Failed to set hostname: %s", err)
 	}
 
+	if err := c.SetSpecRlimits(); err != nil {
+		return fmt.Errorf("Failed to set rlimits: %s", err)
+	}
+
 	runArgs := c.Spec.Process.Args
 
 	if opt != nil && len(opt.Args) > 0 {
@@ -384,6 +387,20 @@ func (c *Container) SpecSysProcAttr() *syscall.SysProcAttr {
 		UidMappings: uidMappings,
 		GidMappings: gidMappings,
 	}
+}
+
+func (c *Container) SetSpecRlimits() error {
+	for _, res := range c.Spec.Process.Rlimits {
+		if err := syscall.Setrlimit(rlimitMap[res.Type], &syscall.Rlimit{
+			Cur: res.Soft,
+			Max: res.Hard,
+		}); err != nil {
+			return err
+		}
+	}
+
+	log.Debug("Set rlimits")
+	return nil
 }
 
 func (c *Container) SetSpecChroot() error {
@@ -532,62 +549,6 @@ func (c *Container) SetSpecEnv() error {
 		log.Debug("Set env", "env", envKV)
 	}
 
-	return nil
-}
-
-func (c *Container) MapNewUid() error {
-	pid := os.Getpid()
-	uid := os.Getuid()
-
-	// parse /etc/subuid
-	etcSubuid, err := os.ReadFile("/etc/subuid")
-	if err != nil {
-		return err
-	}
-
-	parts := strings.Split(string(etcSubuid), ":")
-	if len(parts) != 3 {
-		return fmt.Errorf("/etc/subuid formatted invalid")
-	}
-
-	minSubuid := parts[1]
-	newUidMap := exec.Command("newuidmap", strconv.Itoa(pid), strconv.Itoa(uid), string(minSubuid), strconv.Itoa(1))
-	newUidMap.Stdout = os.Stdout
-	newUidMap.Stderr = os.Stderr
-
-	if err := newUidMap.Run(); err != nil {
-		return err
-	}
-
-	log.Debug("Mapped new UID", "uid", uid, "minSubuid", minSubuid)
-	return nil
-}
-
-func (c *Container) MapNewGid() error {
-	pid := os.Getegid()
-	gid := os.Getgid()
-
-	// parse /etc/subgid
-	etcSubgid, err := os.ReadFile("/etc/subgid")
-	if err != nil {
-		return err
-	}
-
-	parts := strings.Split(string(etcSubgid), ":")
-	if len(parts) != 3 {
-		return fmt.Errorf("/etc/subgid formatted invalid")
-	}
-
-	minSubgid := parts[1]
-	newGidMap := exec.Command("newgidmap", strconv.Itoa(pid), strconv.Itoa(gid), string(minSubgid), strconv.Itoa(1))
-	newGidMap.Stdout = os.Stdout
-	newGidMap.Stderr = os.Stderr
-
-	if err := newGidMap.Run(); err != nil {
-		return err
-	}
-
-	log.Debug("Mapped new GID", "gid", gid, "minSubgid", minSubgid)
 	return nil
 }
 
