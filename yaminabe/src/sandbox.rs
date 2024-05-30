@@ -1,4 +1,7 @@
-use crate::wrapper;
+use crate::{
+    analyzer::{Analyzer, SyscallEvents},
+    wrapper,
+};
 use anyhow::Result;
 use log::info;
 use std::{
@@ -30,7 +33,7 @@ impl Sandbox {
         }
     }
 
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<Analyzer> {
         self.create_mount_dir()?;
         //wrapper::download_oci_container_bundle("ubuntu", "latest")?;
         wrapper::create_container(&self.container_id, "./bundles/ubuntu-latest")?;
@@ -47,13 +50,19 @@ impl Sandbox {
             Some(&["sh", "/mnt/runner.sh"]),
         )?;
 
-        let mut log_file = fs::File::open(self.mount_dir_path().join("syscall_events.json"))?;
-        info!("{:?}", log_file);
+        let mut log_file = File::open(self.mount_dir_path().join("syscall_events.json"))?;
         let mut buf = String::new();
         log_file.read_to_string(&mut buf)?;
+        let syscall_events: SyscallEvents = serde_json::from_str(&buf)?;
+
+        let mut target_pid_file = File::open(self.mount_dir_path().join("target_pid"))?;
+        let mut buf = String::new();
+        target_pid_file.read_to_string(&mut buf)?;
+        let target_pid: i64 = buf.trim().parse()?;
+
         // remove container when dropped this sandbox instance
 
-        Ok(())
+        Ok(Analyzer::new(syscall_events, target_pid))
     }
 
     fn mount_dir_path(&self) -> PathBuf {

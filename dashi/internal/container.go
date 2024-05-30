@@ -236,20 +236,6 @@ func (c *Container) Start(opt *StartOption) error {
 		return fmt.Errorf("Failed to set gid: %s", err)
 	}
 
-	// for _, ns := range c.Spec.Linux.Namespaces {
-	// 	if ns.Type == specs_go.UserNamespace {
-	// 		if err := c.MapNewUid(); err != nil {
-	// 			return fmt.Errorf("Failed to map new uid: %s", err)
-	// 		}
-
-	// 		if err := c.MapNewGid(); err != nil {
-	// 			return fmt.Errorf("Failed to map new gid: %s", err)
-	// 		}
-
-	// 		break
-	// 	}
-	// }
-
 	if err := c.SetSpecChroot(); err != nil {
 		return fmt.Errorf("Failed to set chroot: %s", err)
 	}
@@ -369,6 +355,8 @@ func (c *Container) SpecSysProcAttr() *syscall.SysProcAttr {
 			flags |= syscall.CLONE_NEWNS
 		case specs_go.UserNamespace:
 			flags |= syscall.CLONE_NEWUSER
+		case specs_go.CgroupNamespace:
+			flags |= syscall.CLONE_NEWCGROUP
 		}
 	}
 
@@ -429,48 +417,6 @@ func (c *Container) SetSpecHostname() error {
 }
 
 func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) error {
-	mFlags := map[string]uintptr{
-		"async":         unix.MS_ASYNC,
-		"atime":         0,
-		"bind":          unix.MS_BIND,
-		"defaults":      0,
-		"dev":           unix.MS_NODEV,
-		"diratime":      0,
-		"dirsync":       unix.MS_DIRSYNC,
-		"exec":          0,
-		"iversion":      unix.MS_I_VERSION,
-		"lazytime":      unix.MS_LAZYTIME,
-		"loud":          0,
-		"noatime":       unix.MS_NOATIME,
-		"nodev":         unix.MS_NODEV,
-		"nodiratime":    unix.MS_NODIRATIME,
-		"noexec":        unix.MS_NOEXEC,
-		"noiversion":    0,
-		"nolazytime":    unix.MS_RELATIME,
-		"norelatime":    unix.MS_RELATIME,
-		"nostrictatime": unix.MS_RELATIME,
-		"nosuid":        unix.MS_NOSUID,
-		"private":       unix.MS_PRIVATE,
-		"rbind":         unix.MS_BIND | unix.MS_REC,
-		"rdev":          unix.MS_NODEV | unix.MS_REC,
-		"rdiratime":     0 | unix.MS_REC,
-		"relatime":      unix.MS_RELATIME,
-		"remount":       unix.MS_REMOUNT,
-		"ro":            unix.MS_RDONLY,
-		"rprivate":      unix.MS_PRIVATE | unix.MS_REC,
-		"rshared":       unix.MS_SHARED | unix.MS_REC,
-		"rslave":        unix.MS_SLAVE | unix.MS_REC,
-		"runbindable":   unix.MS_UNBINDABLE | unix.MS_REC,
-		"rw":            0,
-		"shared":        unix.MS_SHARED,
-		"silent":        0,
-		"slave":         unix.MS_SLAVE,
-		"strictatime":   unix.MS_STRICTATIME,
-		"suid":          0,
-		"sync":          unix.MS_SYNC,
-		"unbindable":    unix.MS_UNBINDABLE,
-	}
-
 	rootFsPath := RootfsPath(c.Id, c.Spec.Root.Path)
 
 	mounts := c.Spec.Mounts
@@ -490,7 +436,7 @@ func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) 
 		flags := uintptr(0)
 
 		for _, o := range m.Options {
-			if f, ok := mFlags[o]; ok {
+			if f, ok := mountFlagMap[o]; ok {
 				flags |= f
 			}
 		}
@@ -513,51 +459,6 @@ func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) 
 }
 
 func (c *Container) SetSpecCapabilities() error {
-	cFlags := map[string]uintptr{
-		"CAP_AUDIT_CONTROL":      unix.CAP_AUDIT_CONTROL,
-		"CAP_AUDIT_READ":         unix.CAP_AUDIT_READ,
-		"CAP_AUDIT_WRITE":        unix.CAP_AUDIT_WRITE,
-		"CAP_BLOCK_SUSPEND":      unix.CAP_BLOCK_SUSPEND,
-		"CAP_BPF":                unix.CAP_BPF,
-		"CAP_CHECKPOINT_RESTORE": unix.CAP_CHECKPOINT_RESTORE,
-		"CAP_CHOWN":              unix.CAP_CHOWN,
-		"CAP_DAC_OVERRIDE":       unix.CAP_DAC_OVERRIDE,
-		"CAP_DAC_READ_SEARCH":    unix.CAP_DAC_READ_SEARCH,
-		"CAP_FOWNER":             unix.CAP_FOWNER,
-		"CAP_FSETID":             unix.CAP_FSETID,
-		"CAP_IPC_LOCK":           unix.CAP_IPC_LOCK,
-		"CAP_IPC_OWNER":          unix.CAP_IPC_OWNER,
-		"CAP_KILL":               unix.CAP_KILL,
-		"CAP_LAST_CAP":           unix.CAP_LAST_CAP,
-		"CAP_LEASE":              unix.CAP_LEASE,
-		"CAP_LINUX_IMMUTABLE":    unix.CAP_LINUX_IMMUTABLE,
-		"CAP_MAC_ADMIN":          unix.CAP_MAC_ADMIN,
-		"CAP_MAC_OVERRIDE":       unix.CAP_MAC_OVERRIDE,
-		"CAP_MKNOD":              unix.CAP_MKNOD,
-		"CAP_NET_ADMIN":          unix.CAP_NET_ADMIN,
-		"CAP_NET_BIND_SERVICE":   unix.CAP_NET_BIND_SERVICE,
-		"CAP_NET_BROADCAST":      unix.CAP_NET_BROADCAST,
-		"CAP_NET_RAW":            unix.CAP_NET_RAW,
-		"CAP_PERFMON":            unix.CAP_PERFMON,
-		"CAP_SETGID":             unix.CAP_SETGID,
-		"CAP_SETFCAP":            unix.CAP_SETFCAP,
-		"CAP_SETPCAP":            unix.CAP_SETPCAP,
-		"CAP_SETUID":             unix.CAP_SETUID,
-		"CAP_SYS_ADMIN":          unix.CAP_SYS_ADMIN,
-		"CAP_SYS_BOOT":           unix.CAP_SYS_BOOT,
-		"CAP_SYS_CHROOT":         unix.CAP_SYS_CHROOT,
-		"CAP_SYS_MODULE":         unix.CAP_SYS_MODULE,
-		"CAP_SYS_NICE":           unix.CAP_SYS_NICE,
-		"CAP_SYS_PACCT":          unix.CAP_SYS_PACCT,
-		"CAP_SYS_PTRACE":         unix.CAP_SYS_PTRACE,
-		"CAP_SYS_RAWIO":          unix.CAP_SYS_RAWIO,
-		"CAP_SYS_RESOURCE":       unix.CAP_SYS_RESOURCE,
-		"CAP_SYS_TIME":           unix.CAP_SYS_TIME,
-		"CAP_SYS_TTY_CONFIG":     unix.CAP_SYS_TTY_CONFIG,
-		"CAP_SYSLOG":             unix.CAP_SYSLOG,
-		"CAP_WAKE_ALARM":         unix.CAP_WAKE_ALARM,
-	}
-
 	caps := c.Spec.Process.Capabilities
 	capHeader := unix.CapUserHeader{
 		Version: unix.LINUX_CAPABILITY_VERSION_3,
@@ -566,21 +467,21 @@ func (c *Container) SetSpecCapabilities() error {
 
 	eCaps := uint32(0)
 	for _, e := range caps.Effective {
-		if c, ok := cFlags[e]; ok {
+		if c, ok := capFlagMap[e]; ok {
 			eCaps |= uint32(c)
 		}
 	}
 
 	pCaps := uint32(0)
 	for _, e := range caps.Permitted {
-		if c, ok := cFlags[e]; ok {
+		if c, ok := capFlagMap[e]; ok {
 			pCaps |= uint32(c)
 		}
 	}
 
 	iCaps := uint32(0)
 	for _, e := range caps.Inheritable {
-		if c, ok := cFlags[e]; ok {
+		if c, ok := capFlagMap[e]; ok {
 			iCaps |= uint32(c)
 		}
 	}

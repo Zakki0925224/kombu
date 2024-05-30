@@ -21,7 +21,8 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
     let sandbox = Sandbox::new(Uuid::new_v4().to_string(), args.target_program_path);
-    sandbox.run()?;
+    let analyzer = sandbox.run()?;
+    analyzer.analyze()?;
 
     Ok(())
 }
