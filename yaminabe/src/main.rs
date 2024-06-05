@@ -6,6 +6,8 @@ use uuid::Uuid;
 
 mod analyzer;
 mod sandbox;
+mod syscall;
+mod uptime;
 mod wrapper;
 
 #[derive(Parser, Debug)]

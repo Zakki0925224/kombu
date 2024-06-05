@@ -44,6 +44,11 @@ def task_build_specimens():
 
 
 def task_build_nimono():
+    # generate vmlinux.h
+    run_cmd(
+        "bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h", dir=NIMONO
+    )
+
     run_cmd("clang -O2 -g -c -target bpf bpf_hook_syscall.c", dir=NIMONO)
     run_cmd(f"go build -o ../{OUTPUT_DIR}/{NIMONO}", dir=NIMONO)
 

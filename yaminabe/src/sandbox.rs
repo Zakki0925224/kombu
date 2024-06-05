@@ -58,7 +58,7 @@ impl Sandbox {
         let mut target_pid_file = File::open(self.mount_dir_path().join("target_pid"))?;
         let mut buf = String::new();
         target_pid_file.read_to_string(&mut buf)?;
-        let target_pid: i64 = buf.trim().parse()?;
+        let target_pid = buf.trim().parse()?;
 
         // remove container when dropped this sandbox instance
 

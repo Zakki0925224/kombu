@@ -25,9 +25,11 @@ type BpfObject struct {
 }
 
 type SyscallEvent struct {
-	Timestamp uint64 `json:"timestamp"`
-	SyscallNr uint32 `json:"nr"`
-	Pid       uint32 `json:"pid"`
+	Timestamp uint64   `json:"timestamp"`
+	SyscallNr uint32   `json:"nr"`
+	Pid       uint32   `json:"pid"`
+	Ppid      uint32   `json:"ppid"`
+	Comm      [16]byte `json:"comm"`
 }
 
 func (o *BpfObject) Close() error {

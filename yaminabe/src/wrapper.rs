@@ -53,12 +53,12 @@ pub fn start_container(
     let mut cmd = runtime_cmd(
         &[
             "start",
-            "--user",
+            //"--user",
             &format!("-mount-source={}", mount_source_path),
             &format!("-mount-dest={}", mount_dest_path),
             container_id,
         ],
-        false,
+        true,
     );
     if let Some(command) = command {
         info!("Running command in the container: {:?}", command);
@@ -76,7 +76,7 @@ pub fn start_container(
 }
 
 pub fn delete_container(container_id: &str) -> Result<()> {
-    let mut cmd = runtime_cmd(&["delete", container_id], false);
+    let mut cmd = runtime_cmd(&["delete", container_id], true);
     let output = cmd.output()?;
     output_to_result(output)?;
     Ok(())
