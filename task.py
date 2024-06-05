@@ -61,7 +61,7 @@ def task_build():
     task_build_yaminabe()
 
 
-def task_run_hello():
+def task_run():
     task_build()
     run_cmd("./build/yaminabe -t ./target_programs/file/target/debug/file")
 
@@ -73,7 +73,7 @@ TASKS = [
     task_build_specimens,
     task_build_nimono,
     task_build,
-    task_run_hello,
+    task_run,
 ]
 
 if __name__ == "__main__":
