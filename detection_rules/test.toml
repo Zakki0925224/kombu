@@ -1,0 +1,28 @@
+[meta]
+name = "Test rule"
+desc = "This is the test rule"
+
+[syscall]
+# 指定のシステムコールが実行されていたら検知
+blacklist_numbers = [0, 1, 2, 3] # read, write, open, close
+
+
+# 頻繁に実行されるシステムコールを監視
+[[syscall.frequent]]
+# 検体の実行中にexecvenoの実行が10回を超えたら検知
+threshold_count = 10
+number = 59 # execve
+
+[[syscall.frequent]]
+threshold_count = 5
+number = 264 # renameat
+
+# 連続で実行されるシステムコールを監視
+[[syscall.consecutive]]
+# 連続でwriteが4回実行されたら検知
+threshold_count = 4
+number = 1
+
+[timestamp]
+# タイムスタンプが過去や未来に飛んだら（改ざんされたら）検知
+check_timetravel = true

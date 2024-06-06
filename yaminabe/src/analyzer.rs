@@ -56,10 +56,9 @@ impl Analyzer {
 
         for e in &filtered {
             println!(
-                "uptime: {}, syscall: {:?} (nr: {}), pid: {}, ppid: {}, comm: {:?}",
+                "uptime: {}, syscall: {:?}, pid: {}, ppid: {}, comm: {:?}",
                 e.timestamp_to_uptime(),
                 e.nr_to_syscall(),
-                e.nr,
                 e.pid,
                 e.ppid,
                 e.comm_to_string()
