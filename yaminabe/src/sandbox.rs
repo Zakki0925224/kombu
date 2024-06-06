@@ -1,7 +1,4 @@
-use crate::{
-    analyzer::{Analyzer, SyscallEvents},
-    wrapper,
-};
+use crate::{analyzer::SyscallEvents, wrapper};
 use anyhow::Result;
 use log::info;
 use std::{
@@ -12,6 +9,11 @@ use std::{
 
 const RUNNER_SH: &str = include_str!("./runner.sh");
 const NIMONO_BIN: &[u8] = include_bytes!("../../build/nimono");
+
+pub struct SandboxResult {
+    pub syscall_events: SyscallEvents,
+    pub target_pid: u32,
+}
 
 pub struct Sandbox {
     container_id: String,
@@ -33,7 +35,7 @@ impl Sandbox {
         }
     }
 
-    pub fn run(&self) -> Result<Analyzer> {
+    pub fn run(&self) -> Result<SandboxResult> {
         self.create_mount_dir()?;
         //wrapper::download_oci_container_bundle("ubuntu", "latest")?;
         wrapper::create_container(&self.container_id, "./bundles/ubuntu-latest")?;
@@ -62,7 +64,10 @@ impl Sandbox {
 
         // remove container when dropped this sandbox instance
 
-        Ok(Analyzer::new(syscall_events, target_pid))
+        Ok(SandboxResult {
+            syscall_events,
+            target_pid,
+        })
     }
 
     fn mount_dir_path(&self) -> PathBuf {

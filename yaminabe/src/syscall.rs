@@ -1,6 +1,6 @@
-use num_enum::TryFromPrimitive;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-#[derive(Debug, TryFromPrimitive)]
+#[derive(Debug, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum X86_64Syscalls {
     Read,

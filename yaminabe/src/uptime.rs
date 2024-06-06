@@ -1,14 +1,16 @@
 use std::fmt;
 
+use anyhow::Result;
+
 #[derive(Debug)]
 pub struct Uptime {
-    day: u64,
-    hour: u64,
-    min: u64,
-    sec: u64,
-    ms: u64,
-    micro: u64,
-    nano: u64,
+    pub day: u64,
+    pub hour: u64,
+    pub min: u64,
+    pub sec: u64,
+    pub ms: u64,
+    pub micro: u64,
+    pub nano: u64,
 }
 
 impl From<u64> for Uptime {

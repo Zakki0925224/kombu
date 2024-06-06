@@ -14,7 +14,7 @@ threshold_count = 10
 number = 59 # execve
 
 [[syscall.frequent]]
-threshold_count = 5
+threshold_count = 4
 number = 264 # renameat
 
 # 連続で実行されるシステムコールを監視

@@ -64,7 +64,7 @@ def task_build():
 def task_run():
     task_build()
     run_cmd(
-        "./build/yaminabe -t ./target_programs/remove_root/target/debug/remove_root"
+        "./build/yaminabe -t ./target_programs/remove_root/target/debug/remove_root -d ./detection_rules"
     )
 
 
