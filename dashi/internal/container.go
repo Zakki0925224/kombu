@@ -458,6 +458,22 @@ func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) 
 			}
 		}
 
+		// cgroup
+		if source == mType && strings.Contains(source, "cgroup") {
+			cVer := c.GetCgroupVersion()
+
+			if cVer == 0 {
+				log.Warn("Unsupported to mount cgroup")
+				continue
+			} else if cVer == 1 {
+				source = "cgroup"
+				mType = "tmpfs"
+			} else {
+				source = "cgroup2"
+				mType = "cgroup2"
+			}
+		}
+
 		if err := os.MkdirAll(dest, os.ModePerm); err != nil {
 			log.Warn("Failed to create directory", "dest", dest, "err", err)
 			//return subcommands.ExitFailure
@@ -581,4 +597,15 @@ func (c *Container) SetStateStopped() error {
 	c.State.Pid = -1
 
 	return c.Save()
+}
+
+// return 0: unsupported, 1: version1, 2: version2
+func (c *Container) GetCgroupVersion() int {
+	if _, err := os.Stat("/sys/fs/cgroup/cgroup.controllers"); err == nil {
+		return 2
+	} else if _, err := os.Stat("/sys/fs/cgroup"); err == nil {
+		return 1
+	} else {
+		return 0
+	}
 }

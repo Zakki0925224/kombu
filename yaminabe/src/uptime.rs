@@ -1,7 +1,5 @@
 use std::fmt;
 
-use anyhow::Result;
-
 #[derive(Debug)]
 pub struct Uptime {
     pub day: u64,
