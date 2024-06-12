@@ -1,6 +1,6 @@
 [meta]
-name = "Test rule"
-desc = "This is the test rule"
+name = "Sample rule"
+desc = "This is the sample rule"
 
 [syscall]
 # 指定のシステムコールが実行されていたら検知

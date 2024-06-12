@@ -5,6 +5,7 @@ My own container runtime written in Go.
 ## Features
 
 -   Run on Linux (using namespace, cgroup...)
+-   Rootless container (WIP)
 -   CLI tool for manage containers
 -   Use OCI runtime bundle
 -   Download Docker image and convert to OCI runtime bundle

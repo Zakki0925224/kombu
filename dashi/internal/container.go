@@ -494,7 +494,7 @@ func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) 
 func (c *Container) SetSpecCapabilities() error {
 	caps := c.Spec.Process.Capabilities
 	capHeader := unix.CapUserHeader{
-		Version: unix.LINUX_CAPABILITY_VERSION_3,
+		Version: unix.LINUX_CAPABILITY_VERSION_1,
 		Pid:     int32(c.State.Pid),
 	}
 
