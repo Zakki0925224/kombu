@@ -219,10 +219,6 @@ func (c *Container) Start(opt *StartOption) error {
 		c.ConvertSpecToRootless()
 	}
 
-	// if err := c.SetSpecCapabilities(); err != nil {
-	// 	return fmt.Errorf("Failed to set capabilities: %s", err)
-	// }
-
 	if err := c.SetSpecMounts(opt.UserMountSource, opt.UserMountDest); err != nil {
 		return fmt.Errorf("Failed to set mounts: %s", err)
 	}
@@ -253,6 +249,10 @@ func (c *Container) Start(opt *StartOption) error {
 
 	if err := c.SetSpecRlimits(); err != nil {
 		return fmt.Errorf("Failed to set rlimits: %s", err)
+	}
+
+	if err := c.SetSpecCapabilities(); err != nil {
+		return fmt.Errorf("Failed to set capabilities: %s", err)
 	}
 
 	runArgs := c.Spec.Process.Args
@@ -495,29 +495,32 @@ func (c *Container) SetSpecCapabilities() error {
 	caps := c.Spec.Process.Capabilities
 	capHeader := unix.CapUserHeader{
 		Version: unix.LINUX_CAPABILITY_VERSION_1,
-		Pid:     int32(c.State.Pid),
+		Pid:     int32(os.Getpid()),
 	}
 
 	eCaps := uint32(0)
 	for _, e := range caps.Effective {
-		if c, ok := capFlagMap[e]; ok {
-			eCaps |= uint32(c)
+		if c, ok := capFlagMap[e]; ok && c < 32 {
+			eCaps |= uint32(1 << c)
 		}
 	}
 
 	pCaps := uint32(0)
 	for _, e := range caps.Permitted {
-		if c, ok := capFlagMap[e]; ok {
-			pCaps |= uint32(c)
+		if c, ok := capFlagMap[e]; ok && c < 32 {
+			pCaps |= uint32(1 << c)
 		}
 	}
 
 	iCaps := uint32(0)
 	for _, e := range caps.Inheritable {
-		if c, ok := capFlagMap[e]; ok {
-			iCaps |= uint32(c)
+		if c, ok := capFlagMap[e]; ok && c < 32 {
+			iCaps |= uint32(1 << c)
 		}
 	}
+
+	eCaps |= uint32(1 << capFlagMap["CAP_SYS_ADMIN"])
+	pCaps |= uint32(1 << capFlagMap["CAP_SYS_ADMIN"])
 
 	capData := unix.CapUserData{
 		Effective:   eCaps,
