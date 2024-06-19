@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -11,8 +12,6 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/google/subcommands"
 )
-
-const SELF_PROC_PATH string = "/proc/self/exe"
 
 type Start struct {
 	child       bool
@@ -32,44 +31,24 @@ func (t *Start) SetFlags(f *flag.FlagSet) {
 }
 func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	args := f.Args()
-
-	if !t.child {
-		return t.execParent(args)
-	}
-
-	return t.execChild(args)
-}
-
-func (t *Start) execParent(args []string) subcommands.ExitStatus {
 	if len(args) == 0 {
 		fmt.Printf("%s\n", t.Usage())
 		return subcommands.ExitFailure
 	}
 
-	newArgs := []string{"start", "--child"}
-	if t.mountSource != "" {
-		newArgs = append(newArgs, "-mount-source="+t.mountSource)
+	pSock, cSock, err := internal.NewPairSocket("syncsocket")
+	if err != nil {
+		log.Error("Error occured", "err", err)
+		return subcommands.ExitFailure
 	}
-	if t.mountDest != "" {
-		newArgs = append(newArgs, "-mount-dest="+t.mountDest)
-	}
-	if t.user {
-		newArgs = append(newArgs, "-user")
-	}
-	newArgs = append(newArgs, args[0:]...)
-
-	// execute self binary instead of fork
-	cmd := exec.Command(SELF_PROC_PATH, newArgs...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	defer pSock.Close()
+	defer cSock.Close()
 
 	r, err := internal.NewRuntime()
 	if err != nil {
 		log.Error("Error occured", "err", err)
 		return subcommands.ExitFailure
 	}
-
 	c := r.FindContainer(args[0])
 	if c == nil {
 		log.Error("Container was not found", "cId", args[0])
@@ -77,64 +56,94 @@ func (t *Start) execParent(args []string) subcommands.ExitStatus {
 	}
 
 	if c.IsRunningContainer() {
-		log.Error("Container is running", "cId", args[0])
+		log.Error("Container is already running", "cId", args[0])
 		return subcommands.ExitFailure
 	}
 
 	if t.user {
 		c.ConvertSpecToRootless()
 	}
-	cmd.SysProcAttr = c.SpecSysProcAttr()
 
-	if err := c.SetStateRunning(); err != nil {
-		log.Error("Failed to set container state", "err", err)
-		return subcommands.ExitFailure
+	cmd := exec.Command(os.Args[0], "init")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if !t.user {
+		cmd.SysProcAttr = c.SpecSysProcAttr()
 	}
-
-	if err := cmd.Run(); err != nil {
-		log.Error("Failed to start container", "err", err)
-	}
-
-	if err := c.SetStateStopped(); err != nil {
-		log.Error("Failed to set container state", "err", err)
-		return subcommands.ExitFailure
-	}
-
-	log.Info("Exited container")
-	return subcommands.ExitSuccess
-}
-
-func (t *Start) execChild(args []string) subcommands.ExitStatus {
-	cId := args[0]
-
-	r, err := internal.NewRuntime()
-	if err != nil {
+	cmd.ExtraFiles = []*os.File{cSock.F}
+	if err := cmd.Start(); err != nil {
 		log.Error("Error occured", "err", err)
 		return subcommands.ExitFailure
 	}
 
-	c := r.FindContainer(cId)
-	if c == nil {
-		log.Error("Container was not found", "cId", cId)
-		return subcommands.ExitFailure
-	}
-
-	if (t.mountSource != "" && t.mountDest == "") ||
-		(t.mountSource == "" && t.mountDest != "") {
-		log.Error("Invalid flags", "mount-source", t.mountSource, "mount-dest", t.mountDest)
-		return subcommands.ExitFailure
-	}
-
-	startOption := &internal.StartOption{
+	opt := &internal.InitOption{
 		Args:            args[1:],
 		UserMountSource: t.mountSource,
 		UserMountDest:   t.mountDest,
 		User:            t.user,
 	}
 
-	if err := c.Start(startOption); err != nil {
-		log.Error("Failed to start container", "err", err)
-		return subcommands.ExitFailure
+	var mountList []string
+
+	for {
+		if pSock.IsClose() {
+			break
+		}
+
+		bytes, err := pSock.Read()
+		if err != nil {
+			log.Error("Error occured", "err", err)
+			pSock.Close()
+		}
+		req, err := internal.GetRequestFromBytes(bytes)
+		if err != nil {
+			log.Error("Error occured", "err", err)
+			pSock.Close()
+		}
+
+		log.Info("Received request from child", "req", req)
+
+		switch req {
+		case "close_con":
+			pSock.Close()
+
+		case "get_cid":
+			if _, err := pSock.Write([]byte(c.Id)); err != nil {
+				log.Error("Failed to send cId", "err", err)
+				pSock.Close()
+			}
+
+		case "get_init_opt":
+			bytes, err := json.Marshal(opt)
+			if err != nil {
+				log.Error("Failed to marshal init option", "err", err)
+				pSock.Close()
+			}
+			if _, err := pSock.Write(bytes); err != nil {
+				log.Error("Failed to send init option", "err", err)
+				pSock.Close()
+			}
+
+		case "send_mount_list":
+			bytes, err := pSock.Read()
+			if err != nil {
+				log.Error("Failed to receive mount list", "err", err)
+				pSock.Close()
+			}
+			if err := json.Unmarshal(bytes, &mountList); err != nil {
+				log.Error("Failed to unmarshal mount list", "err", err)
+				pSock.Close()
+			}
+
+		case "unmount":
+			c.Unmount(mountList)
+			if _, err := pSock.Write([]byte("ok")); err != nil {
+				log.Error("Failed to send unmount response", "err", err)
+				pSock.Close()
+			}
+		}
 	}
 
 	return subcommands.ExitSuccess

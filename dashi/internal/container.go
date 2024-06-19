@@ -16,18 +16,17 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type StartOption struct {
-	Args            []string
-	UserMountSource string
-	UserMountDest   string
-	User            bool
+type InitOption struct {
+	Args            []string `json:args`
+	UserMountSource string   `json:user_mount_source`
+	UserMountDest   string   `json:user_mount_dest`
+	User            bool     `json:user`
 }
 
 type Container struct {
-	Id        string
-	Spec      specs_go.Spec
-	State     specs_go.State
-	MountList []string
+	Id    string
+	Spec  specs_go.Spec
+	State specs_go.State
 }
 
 func NewContainer(containerId string, ociRuntimeBundlePath string) (Container, error) {
@@ -96,10 +95,9 @@ func NewContainer(containerId string, ociRuntimeBundlePath string) (Container, e
 	}
 
 	return Container{
-		Id:        containerId,
-		Spec:      spec,
-		State:     state,
-		MountList: make([]string, 0),
+		Id:    containerId,
+		Spec:  spec,
+		State: state,
 	}, nil
 }
 
@@ -146,10 +144,9 @@ func FindContainersFromDirectory() ([]Container, error) {
 		}
 
 		cs = append(cs, Container{
-			Id:        info.Name(),
-			Spec:      spec,
-			State:     state,
-			MountList: make([]string, 0),
+			Id:    info.Name(),
+			Spec:  spec,
+			State: state,
 		})
 
 		return filepath.SkipDir
@@ -211,18 +208,38 @@ func (c *Container) Kill() error {
 	return nil
 }
 
-func (c *Container) Start(opt *StartOption) error {
-	defer c.Unmount()
+func (c *Container) Start(args []string) error {
+	// effCaps := c.Spec.Process.Capabilities.Effective
+	// aCaps := make([]uintptr, 0)
+	// for _, e := range effCaps {
+	// 	if c, ok := capFlagMap[e]; ok {
+	// 		aCaps = append(aCaps, c)
+	// 	}
+	// }
 
-	if opt.User {
-		log.Info("Start container as rootless")
-		c.ConvertSpecToRootless()
+	runArgs := c.Spec.Process.Args
+
+	if args != nil && len(args) > 0 {
+		runArgs = args
+	}
+	log.Debug("Start container...", "agrs", runArgs)
+
+	cmd := exec.Command(runArgs[0], runArgs[1:]...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	// cmd.SysProcAttr = &syscall.SysProcAttr{
+	// 	AmbientCaps: aCaps,
+	// }
+
+	if err := cmd.Run(); err != nil {
+		log.Warn("Exit status was not 0", "err", err)
 	}
 
-	if err := c.SetSpecMounts(opt.UserMountSource, opt.UserMountDest); err != nil {
-		return fmt.Errorf("Failed to set mounts: %s", err)
-	}
+	return nil
+}
 
+func (c *Container) Init(opt *InitOption) error {
 	if err := c.SetSpecUid(); err != nil {
 		return fmt.Errorf("Failed to set uid: %s", err)
 	}
@@ -253,23 +270,6 @@ func (c *Container) Start(opt *StartOption) error {
 
 	if err := c.SetSpecCapabilities(); err != nil {
 		return fmt.Errorf("Failed to set capabilities: %s", err)
-	}
-
-	runArgs := c.Spec.Process.Args
-
-	if opt != nil && len(opt.Args) > 0 {
-		runArgs = opt.Args
-	}
-
-	log.Debug("Start container...", "args", runArgs)
-
-	cmd := exec.Command(runArgs[0], runArgs[1:]...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		log.Warn("Exit status was not 0", "err", err)
 	}
 
 	return nil
@@ -433,10 +433,12 @@ func (c *Container) SetSpecHostname() error {
 	return nil
 }
 
-func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) error {
+func (c *Container) SetSpecMounts(opt *InitOption) ([]string, error) {
 	rootFsPath := RootfsPath(c.Id, c.Spec.Root.Path)
-
 	mounts := c.Spec.Mounts
+	mountList := make([]string, 0)
+	userMountSource := opt.UserMountSource
+	userMountDest := opt.UserMountDest
 	if userMountSource != "" && userMountDest != "" {
 		mounts = append(mounts, specs_go.Mount{
 			Destination: userMountDest,
@@ -484,11 +486,11 @@ func (c *Container) SetSpecMounts(userMountSource string, userMountDest string) 
 			//return subcommands.ExitFailure
 		} else {
 			log.Debug("Mounted", "source", source, "dest", dest)
-			c.MountList = append(c.MountList, m.Destination)
+			mountList = append(mountList, dest)
 		}
 	}
 
-	return nil
+	return mountList, nil
 }
 
 func (c *Container) SetSpecCapabilities() error {
@@ -518,9 +520,6 @@ func (c *Container) SetSpecCapabilities() error {
 			iCaps |= uint32(1 << c)
 		}
 	}
-
-	eCaps |= uint32(1 << capFlagMap["CAP_SYS_ADMIN"])
-	pCaps |= uint32(1 << capFlagMap["CAP_SYS_ADMIN"])
 
 	capData := unix.CapUserData{
 		Effective:   eCaps,
@@ -571,21 +570,19 @@ func (c *Container) SetSpecEnv() error {
 	return nil
 }
 
-func (c *Container) Unmount() {
+func (c *Container) Unmount(mountList []string) {
 	// sort nested paths
-	sort.Slice(c.MountList, func(i, j int) bool {
-		return len(strings.Split(c.MountList[i], "/")) > len(strings.Split(c.MountList[j], "/"))
+	sort.Slice(mountList, func(i, j int) bool {
+		return len(strings.Split(mountList[i], "/")) > len(strings.Split(mountList[j], "/"))
 	})
 
-	for _, dest := range c.MountList {
+	for _, dest := range mountList {
 		if err := unix.Unmount(dest, 0); err != nil {
 			log.Warn("Failed to unmount", "dest", dest, "err", err)
 		} else {
 			log.Debug("Unmounted", "dest", dest)
 		}
 	}
-
-	c.MountList = make([]string, 0)
 }
 
 func (c *Container) SetStateRunning() error {

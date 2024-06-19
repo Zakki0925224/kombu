@@ -46,3 +46,19 @@ var capFlagMap = map[string]uintptr{
 	"CAP_SYSLOG":             unix.CAP_SYSLOG,
 	"CAP_WAKE_ALARM":         unix.CAP_WAKE_ALARM,
 }
+
+func SetKeepCaps() error {
+	if err := unix.Prctl(unix.PR_SET_KEEPCAPS, 1, 0, 0, 0); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ClearKeepCaps() error {
+	if err := unix.Prctl(unix.PR_SET_KEEPCAPS, 0, 0, 0, 0); err != nil {
+		return err
+	}
+
+	return nil
+}
