@@ -9,13 +9,12 @@ import (
 	"os/exec"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
+	"github.com/Zakki0925224/kombu/dashi/util"
 	"github.com/charmbracelet/log"
 	"github.com/google/subcommands"
 )
 
 type Start struct {
-	child       bool
-	user        bool
 	mountSource string
 	mountDest   string
 }
@@ -24,8 +23,6 @@ func (t *Start) Name() string     { return "start" }
 func (t *Start) Synopsis() string { return "start container" }
 func (t *Start) Usage() string    { return "start <container-id> |<commands>|: " + t.Synopsis() }
 func (t *Start) SetFlags(f *flag.FlagSet) {
-	f.BoolVar(&t.child, "child", false, "start container as child process")
-	f.BoolVar(&t.user, "user", false, "start container as rootless")
 	f.StringVar(&t.mountSource, "mount-source", "", "mount source path")
 	f.StringVar(&t.mountDest, "mount-dest", "", "mount destination path")
 }
@@ -60,7 +57,7 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 		return subcommands.ExitFailure
 	}
 
-	if t.user {
+	if !util.IsRunningRootUser() {
 		c.ConvertSpecToRootless()
 	}
 
@@ -68,10 +65,7 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	if !t.user {
-		cmd.SysProcAttr = c.SpecSysProcAttr()
-	}
+	cmd.SysProcAttr = c.SpecSysProcAttr()
 	cmd.ExtraFiles = []*os.File{cSock.F}
 	if err := cmd.Start(); err != nil {
 		log.Error("Error occured", "err", err)
@@ -82,7 +76,6 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 		Args:            args[1:],
 		UserMountSource: t.mountSource,
 		UserMountDest:   t.mountDest,
-		User:            t.user,
 	}
 
 	var mountList []string
@@ -103,7 +96,7 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 			pSock.Close()
 		}
 
-		log.Info("Received request from child", "req", req)
+		log.Debug("Received request from child", "req", req)
 
 		switch req {
 		case "close_con":
@@ -138,7 +131,9 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 			}
 
 		case "unmount":
-			c.Unmount(mountList)
+			if util.IsRunningRootUser() {
+				c.Unmount(mountList)
+			}
 			if _, err := pSock.Write([]byte("ok")); err != nil {
 				log.Error("Failed to send unmount response", "err", err)
 				pSock.Close()

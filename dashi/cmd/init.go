@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
+	"github.com/Zakki0925224/kombu/dashi/util"
 	"github.com/charmbracelet/log"
 	"github.com/google/subcommands"
 )
@@ -71,7 +72,7 @@ func (t *Init) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) sub
 		return subcommands.ExitFailure
 	}
 
-	if opt.User {
+	if !util.IsRunningRootUser() {
 		c.ConvertSpecToRootless()
 	}
 

@@ -20,7 +20,6 @@ type InitOption struct {
 	Args            []string `json:args`
 	UserMountSource string   `json:user_mount_source`
 	UserMountDest   string   `json:user_mount_dest`
-	User            bool     `json:user`
 }
 
 type Container struct {
@@ -209,28 +208,17 @@ func (c *Container) Kill() error {
 }
 
 func (c *Container) Start(args []string) error {
-	// effCaps := c.Spec.Process.Capabilities.Effective
-	// aCaps := make([]uintptr, 0)
-	// for _, e := range effCaps {
-	// 	if c, ok := capFlagMap[e]; ok {
-	// 		aCaps = append(aCaps, c)
-	// 	}
-	// }
-
 	runArgs := c.Spec.Process.Args
 
 	if args != nil && len(args) > 0 {
 		runArgs = args
 	}
-	log.Debug("Start container...", "agrs", runArgs)
+	log.Info("Start container...", "args", runArgs)
 
 	cmd := exec.Command(runArgs[0], runArgs[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	// cmd.SysProcAttr = &syscall.SysProcAttr{
-	// 	AmbientCaps: aCaps,
-	// }
 
 	if err := cmd.Run(); err != nil {
 		log.Warn("Exit status was not 0", "err", err)
