@@ -77,7 +77,6 @@ func FindContainersFromDirectory() ([]Container, error) {
 	}
 
 	var spec specs_go.Spec
-	var state specs_go.State
 	err := filepath.Walk(CONTAINERS_PATH, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return filepath.SkipDir
@@ -98,16 +97,6 @@ func FindContainersFromDirectory() ([]Container, error) {
 		}
 
 		if err := json.Unmarshal(bytes, &spec); err != nil {
-			return err
-		}
-
-		// read state file
-		bytes, err = os.ReadFile(StateFilePath(info.Name()))
-		if err != nil {
-			return err
-		}
-
-		if err := json.Unmarshal(bytes, &state); err != nil {
 			return err
 		}
 
