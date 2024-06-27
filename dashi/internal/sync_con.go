@@ -40,3 +40,22 @@ func RequestToBytes(req string) ([]byte, error) {
 
 	return nil, fmt.Errorf("invalid request type")
 }
+
+func RequestUnmount(s *SyncSocket) error {
+	bytes, _ := RequestToBytes("unmount")
+	if _, err := s.Write(bytes); err != nil {
+		return err
+	}
+
+	// receive response
+	bytes, err := s.Read()
+	if err != nil {
+		return err
+	}
+
+	if string(bytes) != "ok" {
+		return fmt.Errorf("Failed to unmount")
+	}
+
+	return nil
+}

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -202,26 +201,6 @@ func (c *Container) Kill() error {
 	c.State.Pid = -1
 	if err := c.Save(); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (c *Container) Start(args []string) error {
-	runArgs := c.Spec.Process.Args
-
-	if args != nil && len(args) > 0 {
-		runArgs = args
-	}
-	log.Info("Start container...", "args", runArgs)
-
-	cmd := exec.Command(runArgs[0], runArgs[1:]...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		log.Warn("Exit status was not 0", "err", err)
 	}
 
 	return nil

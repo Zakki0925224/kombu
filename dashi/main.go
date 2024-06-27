@@ -14,6 +14,7 @@ func main() {
 	log.SetLevel(log.DebugLevel)
 
 	subcommands.Register(subcommands.CommandsCommand(), "")
+	subcommands.Register(new(cmd.PreInit), "")
 	subcommands.Register(new(cmd.Init), "")
 	subcommands.Register(new(cmd.Start), "")
 	subcommands.Register(new(cmd.Create), "")

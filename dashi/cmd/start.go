@@ -61,7 +61,7 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 		c.ConvertSpecToRootless()
 	}
 
-	cmd := exec.Command(os.Args[0], "init")
+	cmd := exec.Command(os.Args[0], "preinit")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -73,9 +73,13 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 	}
 
 	opt := &internal.InitOption{
-		Args:            args[1:],
+		Args:            c.Spec.Process.Args,
 		UserMountSource: t.mountSource,
 		UserMountDest:   t.mountDest,
+	}
+
+	if args[1:] != nil && len(args[1:]) > 0 {
+		opt.Args = args[1:]
 	}
 
 	var mountList []string

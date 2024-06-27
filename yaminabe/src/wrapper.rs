@@ -57,7 +57,7 @@ pub fn start_container(
             &format!("-mount-dest={}", mount_dest_path),
             container_id,
         ],
-        false,
+        true,
     );
     if let Some(command) = command {
         info!("Running command in the container: {:?}", command);

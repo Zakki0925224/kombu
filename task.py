@@ -63,7 +63,7 @@ def task_build():
 
 def task_run():
     task_build()
-    run_cmd("sudo sysctl -w kernel.unprivileged_bpf_disabled=0")
+    # run_cmd("sudo sysctl -w kernel.unprivileged_bpf_disabled=0")
     run_cmd(
         "./build/yaminabe -t ./target_programs/remove_root/target/debug/remove_root -d ./detection_rules"
     )
