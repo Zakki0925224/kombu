@@ -19,9 +19,7 @@ func main() {
 	subcommands.Register(new(cmd.Start), "")
 	subcommands.Register(new(cmd.Create), "")
 	subcommands.Register(new(cmd.Delete), "")
-	subcommands.Register(new(cmd.List), "")
 	subcommands.Register(new(cmd.Download), "")
-	subcommands.Register(new(cmd.Kill), "")
 	flag.Parse()
 
 	ctx := context.Background()

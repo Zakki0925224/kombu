@@ -6,6 +6,7 @@ import (
 	"flag"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
 	"github.com/charmbracelet/log"
@@ -21,11 +22,13 @@ func (t *Init) SetFlags(f *flag.FlagSet) {}
 func (t *Init) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	cSock := internal.GetSocketFromChild("syncsocket-c")
 	defer func() {
-		internal.RequestUnmount(cSock)
 		bytes, _ := internal.RequestToBytes("close_con")
 		cSock.Write(bytes)
 		cSock.Close()
 	}()
+
+	ticker := time.NewTicker(10 * time.Second) // 10 ticker
+	defer ticker.Stop()
 
 	// request and get init option
 	var opt internal.InitOption
@@ -49,6 +52,14 @@ func (t *Init) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) sub
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
+	// socket connection check
+	go func() {
+		pingReqBytes, _ := internal.RequestToBytes("ping")
+		for range ticker.C {
+			cSock.Write(pingReqBytes)
+		}
+	}()
 
 	if err := cmd.Run(); err != nil {
 		log.Warn("Exit status was not 0", "err", err)

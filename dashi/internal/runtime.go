@@ -73,16 +73,3 @@ func (r *Runtime) FindContainer(cId string) *Container {
 
 	return &r.Containers[cIdx]
 }
-
-func (r *Runtime) KillRunningContainer(cId string) error {
-	c := r.FindContainer(cId)
-	if c == nil {
-		return fmt.Errorf("Container was not found: %s", cId)
-	}
-
-	if err := c.Kill(); err != nil {
-		return err
-	}
-
-	return nil
-}

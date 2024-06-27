@@ -12,6 +12,7 @@ var requestMap = map[byte]string{
 	0x02: "get_init_opt",
 	0x03: "send_mount_list",
 	0x04: "unmount",
+	0x05: "ping",
 }
 
 func GetRequestFromBytes(bytes []byte) (string, error) {
@@ -39,23 +40,4 @@ func RequestToBytes(req string) ([]byte, error) {
 	}
 
 	return nil, fmt.Errorf("invalid request type")
-}
-
-func RequestUnmount(s *SyncSocket) error {
-	bytes, _ := RequestToBytes("unmount")
-	if _, err := s.Write(bytes); err != nil {
-		return err
-	}
-
-	// receive response
-	bytes, err := s.Read()
-	if err != nil {
-		return err
-	}
-
-	if string(bytes) != "ok" {
-		return fmt.Errorf("Failed to unmount")
-	}
-
-	return nil
 }

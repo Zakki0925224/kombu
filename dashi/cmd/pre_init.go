@@ -24,7 +24,6 @@ func (t *PreInit) SetFlags(f *flag.FlagSet) {}
 func (t *PreInit) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	cSock := internal.GetSocketFromChild("syncsocket-c")
 	defer func() {
-		internal.RequestUnmount(cSock)
 		bytes, _ := internal.RequestToBytes("close_con")
 		cSock.Write(bytes)
 		cSock.Close()
@@ -50,11 +49,6 @@ func (t *PreInit) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) 
 	c := r.FindContainer(string(cId))
 	if c == nil {
 		log.Error("Container was not found", "cId", string(cId))
-		return subcommands.ExitFailure
-	}
-
-	if c.IsRunningContainer() {
-		log.Error("Container is already running", "cId", string(cId))
 		return subcommands.ExitFailure
 	}
 

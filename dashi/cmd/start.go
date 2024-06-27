@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
 	"github.com/Zakki0925224/kombu/dashi/util"
@@ -52,11 +53,6 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 		return subcommands.ExitFailure
 	}
 
-	if c.IsRunningContainer() {
-		log.Error("Container is already running", "cId", args[0])
-		return subcommands.ExitFailure
-	}
-
 	if !util.IsRunningRootUser() {
 		c.ConvertSpecToRootless()
 	}
@@ -84,8 +80,32 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 
 	var mountList []string
 
+	checkPing := false
+	pingTimeout := false
+	pingReceived := make(chan bool)
+	pingTimeoutDur := 15 * time.Second
+
+	go func() {
+		for {
+			if !checkPing {
+				continue
+			}
+
+			select {
+			case <-pingReceived:
+				continue
+			case <-time.After(pingTimeoutDur):
+				pingTimeout = true
+				return
+			}
+		}
+	}()
+
 	for {
 		if pSock.IsClose() {
+			if util.IsRunningRootUser() {
+				c.Unmount(mountList)
+			}
 			break
 		}
 
@@ -100,9 +120,13 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 			pSock.Close()
 		}
 
-		log.Debug("Received request from child", "req", req)
+		//log.Debug("Received request from child", "req", req)
 
 		switch req {
+		case "ping":
+			checkPing = true
+			pingReceived <- true
+
 		case "close_con":
 			pSock.Close()
 
@@ -133,17 +157,15 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 				log.Error("Failed to unmarshal mount list", "err", err)
 				pSock.Close()
 			}
+		}
 
-		case "unmount":
-			if util.IsRunningRootUser() {
-				c.Unmount(mountList)
-			}
-			if _, err := pSock.Write([]byte("ok")); err != nil {
-				log.Error("Failed to send unmount response", "err", err)
-				pSock.Close()
-			}
+		// timed out
+		if checkPing && pingTimeout {
+			log.Error("syncsocket connection timed out, container process zombied")
+			pSock.Close()
 		}
 	}
 
+	log.Info("Exited container")
 	return subcommands.ExitSuccess
 }

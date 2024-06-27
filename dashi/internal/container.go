@@ -22,9 +22,8 @@ type InitOption struct {
 }
 
 type Container struct {
-	Id    string
-	Spec  specs_go.Spec
-	State specs_go.State
+	Id   string
+	Spec specs_go.Spec
 }
 
 func NewContainer(containerId string, ociRuntimeBundlePath string) (Container, error) {
@@ -64,38 +63,9 @@ func NewContainer(containerId string, ociRuntimeBundlePath string) (Container, e
 		return Container{}, err
 	}
 
-	// create state
-	state := specs_go.State{
-		Version:     spec.Version,
-		ID:          containerId,
-		Status:      specs_go.StateCreated,
-		Pid:         -1,
-		Bundle:      ociRuntimeBundlePath,
-		Annotations: make(map[string]string),
-	}
-
-	// save state to file
-	stateJson, err := json.Marshal(state)
-	if err != nil {
-		return Container{}, fmt.Errorf("Failed to convert state to json: %s", err)
-	}
-
-	file, err := os.Create(StateFilePath(containerId))
-	if err != nil {
-		return Container{}, fmt.Errorf("Failed to save state file: %s", err)
-	}
-	if _, err := file.Write(stateJson); err != nil {
-		return Container{}, fmt.Errorf("Failed to save state file: %s", err)
-	}
-
-	if err := file.Close(); err != nil {
-		return Container{}, fmt.Errorf("Failed to close state file: %s", err)
-	}
-
 	return Container{
-		Id:    containerId,
-		Spec:  spec,
-		State: state,
+		Id:   containerId,
+		Spec: spec,
 	}, nil
 }
 
@@ -142,9 +112,8 @@ func FindContainersFromDirectory() ([]Container, error) {
 		}
 
 		cs = append(cs, Container{
-			Id:    info.Name(),
-			Spec:  spec,
-			State: state,
+			Id:   info.Name(),
+			Spec: spec,
 		})
 
 		return filepath.SkipDir
@@ -159,51 +128,6 @@ func FindContainersFromDirectory() ([]Container, error) {
 
 func (c *Container) DeleteContainerDirectory() error {
 	return os.RemoveAll(CONTAINERS_PATH + "/" + c.Id)
-}
-
-func (c *Container) Save() error {
-	// save state to file
-	stateJson, err := json.Marshal(c.State)
-	if err != nil {
-		return fmt.Errorf("Failed to convert state to json: %s", err)
-	}
-
-	file, err := os.Create(StateFilePath(c.Id))
-	if err != nil {
-		return fmt.Errorf("Failed to create state file: %s", err)
-	}
-	if _, err := file.Write(stateJson); err != nil {
-		return fmt.Errorf("Failed to write state file: %s", err)
-	}
-
-	if err := file.Close(); err != nil {
-		return fmt.Errorf("Failed to close state file: %s", err)
-	}
-
-	return nil
-}
-
-func (c *Container) Kill() error {
-	if c.State.Status != specs_go.StateRunning && c.State.Pid == -1 {
-		return fmt.Errorf("Container is not running")
-	}
-
-	// kill container process
-	p, err := os.FindProcess(c.State.Pid)
-	if err != nil {
-		return err
-	}
-	if err := p.Kill(); err != nil {
-		return err
-	}
-
-	c.State.Status = specs_go.StateStopped
-	c.State.Pid = -1
-	if err := c.Save(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (c *Container) Init(opt *InitOption) error {
@@ -240,11 +164,6 @@ func (c *Container) Init(opt *InitOption) error {
 	}
 
 	return nil
-}
-
-func (c *Container) IsRunningContainer() bool {
-	state := c.State
-	return state.Status == specs_go.StateRunning && state.Pid != 1
 }
 
 // reference: https://github.com/opencontainers/runc/blob/main/libcontainer/specconv/example.go
@@ -550,20 +469,6 @@ func (c *Container) Unmount(mountList []string) {
 			log.Debug("Unmounted", "dest", dest)
 		}
 	}
-}
-
-func (c *Container) SetStateRunning() error {
-	c.State.Status = specs_go.StateRunning
-	c.State.Pid = os.Getpid()
-
-	return c.Save()
-}
-
-func (c *Container) SetStateStopped() error {
-	c.State.Status = specs_go.StateStopped
-	c.State.Pid = -1
-
-	return c.Save()
 }
 
 // return 0: unsupported, 1: version1, 2: version2
