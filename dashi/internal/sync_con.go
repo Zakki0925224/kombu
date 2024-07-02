@@ -13,6 +13,7 @@ var requestMap = map[byte]string{
 	0x03: "send_mount_list",
 	0x04: "unmount",
 	0x05: "ping",
+	0x06: "send_target_program_pid",
 }
 
 func GetRequestFromBytes(bytes []byte) (string, error) {

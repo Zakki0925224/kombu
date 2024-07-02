@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
@@ -81,9 +82,9 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 	var mountList []string
 
 	checkPing := false
-	pingTimeout := false
 	pingReceived := make(chan bool)
 	pingTimeoutDur := 15 * time.Second
+	targetProgramPid := -1
 
 	go func() {
 		for {
@@ -95,7 +96,18 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 			case <-pingReceived:
 				continue
 			case <-time.After(pingTimeoutDur):
-				pingTimeout = true
+				log.Error("syncsocket connection timed out, container process zombied")
+				pSock.Close()
+
+				if targetProgramPid != -1 {
+					// TODO: pid is invalid for host
+					// kill target program
+					// if err := syscall.Kill(targetProgramPid, syscall.SIGKILL); err != nil {
+					// 	log.Error("Failed to kill target program", "pid", targetProgramPid, "err", err)
+					// }
+
+					// log.Info("Target program killed")
+				}
 				return
 			}
 		}
@@ -157,12 +169,19 @@ func (t *Start) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 				log.Error("Failed to unmarshal mount list", "err", err)
 				pSock.Close()
 			}
-		}
 
-		// timed out
-		if checkPing && pingTimeout {
-			log.Error("syncsocket connection timed out, container process zombied")
-			pSock.Close()
+		case "send_target_program_pid":
+			bytes, err := pSock.Read()
+			if err != nil {
+				log.Error("Failed to receive target program pid", "err", err)
+				continue
+			}
+			pid, err := strconv.Atoi(string(bytes))
+			if err != nil {
+				log.Error("Failed to parse target program pid", "err", err)
+				continue
+			}
+			targetProgramPid = pid
 		}
 	}
 

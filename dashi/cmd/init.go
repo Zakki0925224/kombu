@@ -6,6 +6,7 @@ import (
 	"flag"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/Zakki0925224/kombu/dashi/internal"
@@ -53,15 +54,31 @@ func (t *Init) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) sub
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	if err := cmd.Start(); err != nil {
+		log.Error("Failed to start program", "err", err)
+		return subcommands.ExitFailure
+	}
+
 	// socket connection check
+	targetProgramPid := -1
 	go func() {
 		pingReqBytes, _ := internal.RequestToBytes("ping")
+		sendTargetProgramPidReqBytes, _ := internal.RequestToBytes("send_target_program_pid")
 		for range ticker.C {
-			cSock.Write(pingReqBytes)
+			if targetProgramPid != -1 {
+				cSock.Write(sendTargetProgramPidReqBytes)
+				cSock.Write([]byte(strconv.Itoa(targetProgramPid)))
+				targetProgramPid = -1
+			} else {
+				cSock.Write(pingReqBytes)
+			}
 		}
 	}()
 
-	if err := cmd.Run(); err != nil {
+	// get pid
+	targetProgramPid = cmd.Process.Pid
+
+	if err := cmd.Wait(); err != nil {
 		log.Warn("Exit status was not 0", "err", err)
 	}
 
