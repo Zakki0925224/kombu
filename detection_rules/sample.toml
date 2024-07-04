@@ -4,7 +4,8 @@ desc = "This is the sample rule"
 
 [syscall]
 # 指定のシステムコールが実行されていたら検知
-blacklist_numbers = [0, 1, 2, 3] # read, write, open, close
+#blacklist_numbers = [0, 1, 2, 3] # read, write, open, close
+blacklist_numbers = []
 
 
 # 頻繁に実行されるシステムコールを監視
@@ -15,7 +16,7 @@ number = 59 # execve
 
 [[syscall.frequent]]
 threshold_count = 4
-number = 264 # renameat
+number = 263 # renameat
 
 # 連続で実行されるシステムコールを監視
 [[syscall.consecutive]]
