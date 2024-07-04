@@ -9,7 +9,7 @@ blacklist_numbers = [0, 1, 2, 3] # read, write, open, close
 
 # 頻繁に実行されるシステムコールを監視
 [[syscall.frequent]]
-# 検体の実行中にexecvenoの実行が10回を超えたら検知
+# 検体の実行中にexecveの実行が10回を超えたら検知
 threshold_count = 10
 number = 59 # execve
 
